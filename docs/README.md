@@ -16,7 +16,7 @@ Raiz do repo: [`../README.md`](../README.md).
 
 | Tema | Onde ler |
 | --- | --- |
-| Circuito 1→66→65, check-in, Kapps TV | `PROJECT-STATE.md` |
+| Circuito 1→66→65, check-in, Kapps TV, Centro/TV alinhados, % `aindaEmPicking`, Disponível UI | `PROJECT-STATE.md` |
 | Em Aberto por referência — Backend 1A (performance / paginação API) | `PROJECT-STATE.md` (§ Backend 1A), `api-contract.md` (`/artigos/procura-aberta`) |
 | Auditoria Picking / Kapps Quantity / distribuição fraccionada | [`auditoria-picking-kapps-distribuicao.md`](./auditoria-picking-kapps-distribuicao.md) |
 | Rotas Separado / Em Expedição / Concluídas | `business-flows.md` + `PROJECT-STATE.md` |

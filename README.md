@@ -9,11 +9,14 @@ Portal web operacional sobre **PHC CS (SQL Server)**. Dados de negócio no PHC; 
 | **Fonte de verdade** | [`docs/PROJECT-STATE.md`](./docs/PROJECT-STATE.md) |
 | **Fluxos de ecrã** | [`docs/business-flows.md`](./docs/business-flows.md) |
 | **Índice docs** | [`docs/README.md`](./docs/README.md) |
-| **Actualizado** | 2026-09-29 |
+| **Actualizado** | 2026-10-07 |
+| **GitHub** | [Jhouinho/portal-logistica](https://github.com/Jhouinho/portal-logistica) (público) |
 
-**Resumo:** circuito documental **1 → 66 → 65** validado em UAT; autorização/alocação por **previsão de entrada** (sem teto `ST.stock`); realtime SignalR por **invalidação** (`OperacoesHub` + `TvHub` público); TV/listas/centro com `GET /api/v1/painel/tv-kapps-resumo`.
+**Resumo:** circuito documental **1 → 66 → 65** validado em UAT; autorização/alocação por **previsão de entrada** (sem teto `ST.stock`); realtime SignalR por **invalidação** (`OperacoesHub` + `TvHub` público); TV/Centro com o **mesmo modelo UI** e `GET /api/v1/painel/tv-kapps-resumo`; KPIs = COUNT documentos + % lógica fraccionada (incl. momento `aindaEmPicking`); «Separado — em progresso» inclui 66 com check-in se Kapps em curso; Disponível na UI desconta Autorizada sugerida não gravada.
 
 Pendentes e hipóteses (ex. sessão Kapps PIK aberta): ver `PROJECT-STATE.md` — **não implementar** hipóteses sem evidência.
+
+**Marca:** logotipo PNG **não** está no repositório público; a UI usa texto (`BrandLogo`).
 
 ## Documentação
 

@@ -7,7 +7,7 @@
 | Documento | `docs/PROJECT-STATE.md` |
 | Idioma | Português de Portugal |
 | Propósito | Estado actual, decisões, validação UAT, hipóteses, pendentes e o que **não** implementar sem nova evidência |
-| Actualizado | 2026-10-07 |
+| Actualizado | 2026-10-07 (noite — Centro/TV, % lógica, Disponível UI, repo público) |
 
 ### Legenda de estados neste documento
 
@@ -28,7 +28,9 @@
 
 O Portal é uma camada operacional sobre o PHC CS (SQL Server): lê e actua no PHC; Identity só autentica. O circuito documental **1 → 66 → 65** está **VALIDADO EM UAT** (29/09/2026). Realtime por invalidação SignalR (OperacoesHub autenticado + TvHub público) está **IMPLEMENTADO**; a TV e as listas/centro usam `tv-kapps-resumo` para evitar N+1 Kapps (**IMPLEMENTADO**, medido em UAT na TV).
 
-**Sólido/validado:** fluxo operacional principal, check-in, previsões, quantidades pós-autorização, data entrega / nome2 / método expedição, realtime + TV pública, optimização Kapps TV/listas/centro, Separado com Qtd. documento / entrega parcial; **«Quantidades não entregues»** = 66 fechado com `qtt−qtt2>0` (**IMPLEMENTADO** / **VALIDADO EM UAT** 30/09/2026); **«Pendentes de Picagem»** = ndos=1 iniciada (∃ `Picked`∨`SUM66`) + `Pending>0` por linha (**FECHADO COM RESSALVA DE UAT** 07/10/2026, #27); **fecho operacional Em Expedição→Concluídas** sem faturação (**IMPLEMENTADO** 30/09/2026); **KPIs Centro/TV** = 5 cards com COUNT operacional + % de encomenda lógica **fraccionada** (`distribuicaoLogica`) (**IMPLEMENTADO** / **VALIDADO EM UAT** Cenário A 06/10/2026); **Em Picking** sai da lista quando `SUM(66.BI.qtt) ≥ BI.qtt` por linha (**IMPLEMENTADO** 06/10/2026); **Cancelar Picking — REGRA B** bloqueado após `SUM(66.qtt)>0` (**IMPLEMENTADO** / **VALIDADO EM UAT** 07/10/2026, enc. 27); **morada** `BO2.u_mEntrega` + ⓘ; **filtro Modo de Expedição** nas listas (**IMPLEMENTADO** 30/09/2026); propagação Kapps `u_mEntrega` / `u_modExp` em `SP_u_Kapps_DossiersUSR` (**IMPLEMENTADO** em UAT; smoke circuito novo pendente); **Em Aberto por referência — Backend 1A** (**IMPLEMENTADO** / **VALIDADO EM UAT** 06/10/2026 nos cenários observáveis; baseline HTTP registada; FE ainda sem paginação).
+**Sólido/validado:** fluxo operacional principal, check-in, previsões, quantidades pós-autorização, data entrega / nome2 / método expedição, realtime + TV pública, optimização Kapps TV/listas/centro, Separado com Qtd. documento / entrega parcial; **«Quantidades não entregues»** = 66 fechado com `qtt−qtt2>0` (**IMPLEMENTADO** / **VALIDADO EM UAT** 30/09/2026); **«Pendentes de Picagem»** = ndos=1 iniciada (∃ `Picked`∨`SUM66`) + `Pending>0` por linha (**FECHADO COM RESSALVA DE UAT** 07/10/2026, #27); **fecho operacional Em Expedição→Concluídas** sem faturação (**IMPLEMENTADO** 30/09/2026); **KPIs Centro/TV** = 5 cards com COUNT operacional + % de encomenda lógica **fraccionada** (`distribuicaoLogica`) (**IMPLEMENTADO** / **VALIDADO EM UAT** Cenário A 06/10/2026); **% lógica com `aindaEmPicking`** — se a encomenda ainda tem residual em Picking e 66 activo, pesos iguais (ex. 0,5+0,5) (**IMPLEMENTADO** 07/10/2026); **Centro/TV — «Separado — em progresso»** inclui dossiers 66 abertos com Kapps em curso **com ou sem** `u_chkin` (**IMPLEMENTADO** 07/10/2026); **Vista TV** partilha o mesmo modelo UI do Centro (`GeralView` / `KpiStrip`) (**IMPLEMENTADO** 07/10/2026); **Disponível (UI)** desconta a sugestão de Autorizada ainda não gravada (Ref+Cor) em Em Aberto e Por referência (**IMPLEMENTADO** 07/10/2026); **Em Picking** sai da lista quando `SUM(66.BI.qtt) ≥ BI.qtt` por linha (**IMPLEMENTADO** 06/10/2026); **Cancelar Picking — REGRA B** bloqueado após `SUM(66.qtt)>0` (**IMPLEMENTADO** / **VALIDADO EM UAT** 07/10/2026, enc. 27); **morada** `BO2.u_mEntrega` + ⓘ; **filtro Modo de Expedição** nas listas (**IMPLEMENTADO** 30/09/2026); propagação Kapps `u_mEntrega` / `u_modExp` em `SP_u_Kapps_DossiersUSR` (**IMPLEMENTADO** em UAT; smoke circuito novo pendente); **Em Aberto por referência — Backend 1A** (**IMPLEMENTADO** / **VALIDADO EM UAT** 06/10/2026 nos cenários observáveis; baseline HTTP registada; FE ainda sem paginação).
+
+**Repo GitHub:** [`Jhouinho/portal-logistica`](https://github.com/Jhouinho/portal-logistica) (**público**). Logotipo PNG de marca **fora** do repositório (`logo-lsflores.png` em gitignore); UI usa marca em texto (`BrandLogo`).
 
 **Principal trabalho pendente:** fechar distinção formal “Não picada” vs “Não entregue”; 2×65 na mesma linha do 66 (se surgir); Cenário B `2×66 ativos + 1×65` se surgir; smoke UAT do filtro Modo de Expedição e da cópia 1→66→65; **paginação no frontend** da vista Em Aberto por referência (consumir `page` / `pageSize` / `totalItems` do backend 1A).
 
@@ -171,23 +173,30 @@ Em aberto · Em Picking · Separado · Em Entrega · Em Expedição
 | Em Entrega | ndos=66, `fechada=0`, `u_chkin=1` |
 | Em Expedição | ndos=65, `fechada=0` |
 
-**Distribuição lógica (% )** — universo = encomendas `ndos=1` ligadas ao circuito via cadeia `BI.obistamp` (1↔66↔65). Cada encomenda contribui **exactamente 1,0**; pesos fraccionados:
+**Distribuição lógica (% )** — universo = encomendas `ndos=1` ligadas ao circuito via cadeia `BI.obistamp` (1↔66↔65). Cada encomenda contribui **exactamente 1,0**; pesos fraccionados entre **momentos activos** com peso igual (`DistribuicaoLogicaCalculator.Contribuir`):
 
 ```text
-66 activo = fechada=0 ∧ SUM(qtt−qtt2)>0
-  u_chkin=0 → Separado
-  u_chkin=1 → Em Entrega
+Momentos (cada um = 1 balde de peso):
+  aindaEmPicking = mesmo critério do COUNT Em Picking
+                   (pronta_picking=1 ∧ EXISTS linha BI.qtt > SUM(66.qtt))
+  conjunto 66 activos = fechada=0 ∧ SUM(qtt−qtt2)>0
+    u_chkin=0 → Separado (fracção dos n 66)
+    u_chkin=1 → Em Entrega
+  conjunto 65 activo = fechada=0 → Em Expedição (um balde, vários 65 não multiplicam)
 
-65 activo = fechada=0 → Em Expedição (conjunto 65 = um balde)
+peso = 1 / (nº de momentos activos)
 
-Só 66 (n activos): cada 66 = 1/n
-Só 65: Em Expedição = 1,0
-66 + 65: conjunto 66 = 0,5 (repartido pelos n 66); Em Expedição = 0,5
-Sem 66/65 activos: Em Picking / Em Aberto / Não classificada (via pronta_picking na vista)
+Exemplos:
+  só 66 (chkin=0): Separado = 1,0
+  66 + 65: Separado/Entrega 0,5 + Em Expedição 0,5
+  aindaEmPicking + 66 (sem 65): Em Picking 0,5 + Separado/Entrega 0,5
+  aindaEmPicking + 66 + 65: ⅓ + ⅓ + ⅓ (resto decimal no último balde)
+  sem 66/65: Em Picking / Em Aberto / Não classificada (via pronta_picking)
 ```
 
 Exemplo: `1×66 (chkin=0) + 1×65` → Separado **0,5** + Em Expedição **0,5**.  
-Exemplo: `2×66 ativos + 1×65` → cada 66 **0,25** + Em Expedição **0,5** (regra mantida; **UAT PENDENTE / NÃO OBSERVÁVEL** 07/10/2026 — ver abaixo).
+Exemplo: encomenda ainda em Picking + 1×66 → Em Picking **0,5** + Separado **0,5** (**IMPLEMENTADO** 07/10/2026; corrige o caso em que % Em Picking ficava 0 com 66 activo).  
+Exemplo: `2×66 ativos + 1×65` → cada 66 **0,25** + Em Expedição **0,5** se **não** `aindaEmPicking` (regra mantida; **UAT PENDENTE / NÃO OBSERVÁVEL** 07/10/2026 — ver abaixo).
 
 Percentagens: `round(100 * quantidadeEstado / totalEncomendasLogicas, 1)` — `quantidade` pode ser decimal (ex. `9.5`).
 
@@ -207,6 +216,27 @@ Percentagens: `round(100 * quantidadeEstado / totalEncomendasLogicas, 1)` — `q
 **UAT (07/10/2026) — Cenário B (`2×66 ativos + 1×65 aberto`):** pesquisa read-only em `LillianaSerodioPhc` — **não existe caso real** (0 encomendas com ≥2 66 ativos; 0 com ≥2 66 ativos ∧ ≥1 65 aberto). Near-miss: enc. **11** = 1×66 ativo + 1×65 (já PASS); enc. **16** = 2×66 fechados + 2×65 abertos (já PASS). Regra `25%+25%+50%` **mantida**; coberta por testes unitários `DistribuicaoLogicaCalculator`; **não** classificado como FAIL. Detalhe: [`auditoria-picking-kapps-distribuicao.md`](./auditoria-picking-kapps-distribuicao.md) §21A. Veredicto: **UAT PENDENTE / NÃO OBSERVÁVEL**.
 
 Código: `PainelQuery.ContarEstadosCentroAsync` / `ContarDistribuicaoLogicaAsync`, `DistribuicaoLogicaCalculator`, UI `KpiStrip` / `MiniStat` (`centroUi.tsx`).
+
+### Centro / TV — painéis «em progresso» (**IMPLEMENTADO** 07/10/2026)
+
+Centro (`/`) e Vista TV (`/tv`) partilham o mesmo modelo de listas (`GeralView` em `CentroViews.tsx`):
+
+| Painel | População |
+| --- | --- |
+| Em Picking — em progresso | Encomendas `pronta_picking` com Kapps `kind=curso` |
+| Separado — em progresso | União de dossiers 66 `checkIn=false` **e** `checkIn=true` (A Preparar Entrega), sem duplicar `bostamp`, filtrados a Kapps `kind=curso` — **`populacaoProgressoSeparacao`** |
+| Check-in — à espera do material | Dossiers 66 com `u_chkin=1` (até 16 na UI); colunas Cliente + data/hora check-in |
+
+**CONFIRMADO:** o COUNT/KPI «Separado» continua a ser só `u_chkin=0`; o painel de progresso Kapps **não** exclui dossiers já com check-in se a picagem Kapps ainda está em curso.
+
+UX comum: faixa vertical esquerda colorida no cabeçalho (título + colunas Encomenda / A trabalhar / …); Separado usa a cor de A Preparar Entrega (`etapaColors[4]`); Check-in usa o verde do menu (`etapaColors.checkIn`). Sem método de expedição / nº picking nos cartões de Separado; nomes densos.
+
+TV: `KpiStrip` + MiniStats + `GeralView` (já não há componentes de lista TV paralelos). Toggle dia/noite no cabeçalho junto a «Sistema online» / relógio.
+
+### Disponível vs Autorizada (UI Em Aberto / Por referência) (**IMPLEMENTADO** 07/10/2026)
+
+API: `stockDisponivel` = Previsto − Alocado (`u_qtdaut` **já gravado**).  
+Quando a célula Autorizada mostra sugestão (`u_qtdaut=0` → quantidade a satisfazer) **ainda não gravada**, a coluna Disponível na UI desconta esse delta por **Ref+Cor** (`stockDisponivelComSugestao` / `quantidadeAutorizadaTotalEfectiva` em `QuantidadeAutorizadaCell.tsx`). Usado em detalhe de encomenda, lista Em Aberto e Por referência.
 
 ### Em Picking — quantidade ainda por separar (**IMPLEMENTADO** 06/10/2026)
 
@@ -625,6 +655,10 @@ Alteração: estrutural/performance + suporte de paginação no **backend**.
 | Fecho operacional Em Expedição → Concluídas (sem faturação; BO+BI) | **IMPLEMENTADO** (30/09/2026); smoke SQL UAT |
 | Reabrir expedição (Concluídas → Em Expedição; BO+BI) | **IMPLEMENTADO** (30/09/2026) |
 | Centro/TV: 5 KPIs = COUNT documentos + % encomenda lógica **fraccionada** | **IMPLEMENTADO** / **VALIDADO EM UAT** Cenário A (06/10/2026); Cenário B `2×66 ativos + 1×65` — **UAT PENDENTE / NÃO OBSERVÁVEL** (07/10/2026; unitários OK; não é FAIL) |
+| % lógica: momento `aindaEmPicking` (pesos iguais com 66/65) | **IMPLEMENTADO** (07/10/2026); unitários `DistribuicaoLogicaCalculatorTests` |
+| Centro/TV: Separado em progresso inclui 66 com check-in + Kapps em curso | **IMPLEMENTADO** (07/10/2026) — `populacaoProgressoSeparacao` |
+| Vista TV alinhada ao Centro (`GeralView` / `KpiStrip`) | **IMPLEMENTADO** (07/10/2026) |
+| Disponível UI desconta Autorizada sugerida não gravada (Ref+Cor) | **IMPLEMENTADO** (07/10/2026) — Em Aberto + Por referência |
 | Em Picking: sai da lista quando linhas totalmente separadas (`SUM(66.qtt)`) | **IMPLEMENTADO** (06/10/2026); contador menu alinhado |
 | Realtime `/picking`: `dossier66Alterado` invalida lista abertas | **IMPLEMENTADO** (06/10/2026) |
 | Realtime backend (detector + HostedService) | IMPLEMENTADO / VALIDADO EM UAT (latência ciclo ~s) |
@@ -682,6 +716,8 @@ Regras:
 | SignalR | `/hubs/tv` (**IMPLEMENTADO**) |
 | Polling | `REFRESH_MS = 30_000` como fallback (**IMPLEMENTADO**; manter) |
 | Kapps | `GET /api/v1/painel/tv-kapps-resumo` em paralelo à wave1 |
+| UI | **Mesmo modelo do Centro** — `KpiStrip`, MiniStats, `GeralView` (**IMPLEMENTADO** 07/10/2026) |
+| Tema | Toggle dia/noite no cabeçalho (junto a Sistema online / relógio) |
 
 Medição UAT (anti N+1):
 
@@ -904,6 +940,9 @@ SessionEndDateTime IS NULL
 | TV pública + tv-kapps-resumo | IMPLEMENTADO / UAT | Alta | Não otimizar sem medir |
 | Resumo Kapps em listas/centro | IMPLEMENTADO | Alta | Smoke UX |
 | Centro/TV dual métrica (COUNT vs % lógica) | IMPLEMENTADO / UAT | Alta | Não fundir as duas semântica; ver secção Centro/TV |
+| % lógica `aindaEmPicking` + Separado progresso c/ check-in | IMPLEMENTADO | Alta | Manter; COUNT Separado continua só `u_chkin=0` |
+| Disponível UI vs Autorizada sugerida | IMPLEMENTADO | Alta | Só FE; API mantém Previsto−Alocado gravado |
+| Repo público sem logotipo PNG | CONFIRMADO | Alta | `logo-lsflores.png` gitignore; marca em texto |
 | Morada `u_mEntrega` + método `u_modExp` + ⓘ | IMPLEMENTADO | Alta | Smoke Kapps 1→66→65 |
 | Filtro Modo de Expedição (listas) | IMPLEMENTADO | Alta | Smoke UAT UI |
 | Kapps USR cópia `u_mEntrega` / `u_modExp` | IMPLEMENTADO (BD UAT) | Média | Validar com doc novo preenchido |

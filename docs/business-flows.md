@@ -9,7 +9,7 @@
 | Idioma | Português de Portugal |
 | Âmbito detalhado | MVP + Registo Cliente (Fase 2) |
 | Fora do detalhe de implementação | Cash & Carry (capacidade futura) |
-| Actualizado | 2026-10-07 (Pendentes de Picagem — started ao nível encomenda) |
+| Actualizado | 2026-10-07 (Centro/TV alinhados; % `aindaEmPicking`; Disponível UI) |
 
 ---
 
@@ -19,8 +19,8 @@ Dados **reais do PHC** (Dapper / APIs). O ficheiro `centroMock.ts` é legado e *
 
 | Superfície | Rota | Auth | Conteúdo / dados |
 | --- | --- | --- | --- |
-| Centro operacional | `/` | Cookie | Tabs Geral / Em Picking / Separado; KPIs `GET /api/v1/painel/centro-estados` (**número** = COUNT documentos; **%** = `distribuicaoLogica`); listas abertas + dossiers 66; Kapps via `GET /api/v1/painel/tv-kapps-resumo` |
-| Vista TV | `/tv`, `/centro-tv` | **Público** | Mesma família de APIs + SignalR `/hubs/tv`; polling 30 s como fallback; mesmos 5 cards dual métrica |
+| Centro operacional | `/` | Cookie | Tabs Geral / Em Picking / Separado; KPIs `GET /api/v1/painel/centro-estados` (**número** = COUNT documentos; **%** = `distribuicaoLogica` com `aindaEmPicking`); painéis via `GeralView`; Kapps via `tv-kapps-resumo` |
+| Vista TV | `/tv`, `/centro-tv` | **Público** | **Mesmo modelo UI** do Centro (`KpiStrip` + `GeralView`) + SignalR `/hubs/tv`; polling 30 s como fallback |
 | Check-in | `/check-in` | Cookie | Dossiers 66 sem check-in; marcar check-in |
 | Em Picking | `/picking` | Cookie | Encomendas ndos=1 com `pronta_picking=1` e linha ainda por separar (`BI.qtt > SUM(66.qtt)`); estado Kapps via resumo (+ detalhe no expand) |
 | Separado | `/expedicao` | Cookie | Dossiers ndos=66, `fechada=0`, `u_chkin=0`; **Qtd. documento** = `BI.qtt`; badge **Entrega parcial** se já expediu e ainda há pendente; expand: Documento / Expedida / Pendente |
@@ -30,7 +30,15 @@ Dados **reais do PHC** (Dapper / APIs). O ficheiro `centroMock.ts` é legado e *
 | Quantidades não entregues | `/nao-entregues` | Cookie | Dossiers **66** fechados com `SUM(qtt−qtt2)>0` (**IMPLEMENTADO**; API `GET /cortes-quantidade`) |
 | Pendentes de Picagem | `/pendentes-picagem` | Cookie | Encomendas **ndos=1** abertas + `u_pickrdy=1` que **já iniciaram** o Picking (nível encomenda); vistas Por encomenda / Por referência; API `GET /pendentes-picagem` |
 
-**Dual métrica nos KPIs (não confundir):** o número grande do card é o COUNT operacional da lista correspondente (ex. Em aberto = `pronta_picking=0`); a % é a fatia de **encomendas lógicas** (`bostamp` ndos=1), cada uma com **1,0 unidade repartida** pelos 66/65 activos (ex. 66+65 → 50%/50%). COUNT e % **não** têm de coincidir. Detalhe e UAT: [`PROJECT-STATE.md`](./PROJECT-STATE.md) § Centro / TV.
+**Dual métrica nos KPIs (não confundir):** o número grande do card é o COUNT operacional da lista correspondente (ex. Em aberto = `pronta_picking=0`); a % é a fatia de **encomendas lógicas** (`bostamp` ndos=1), cada uma com **1,0 unidade repartida** pelos momentos activos (Picking residual / conjunto 66 / conjunto 65 — pesos iguais; ex. ainda em Picking+66 → 50%/50%; 66+65 → 50%/50%). COUNT e % **não** têm de coincidir. Detalhe e UAT: [`PROJECT-STATE.md`](./PROJECT-STATE.md) § Centro / TV.
+
+**Painéis «em progresso» (Geral / TV):**
+
+| Painel | Critério |
+| --- | --- |
+| Em Picking — em progresso | Kapps em curso nas encomendas pronta picking |
+| Separado — em progresso | 66 abertos **com ou sem** check-in + Kapps em curso (`populacaoProgressoSeparacao`) |
+| Check-in — à espera | 66 com `u_chkin=1` (Cliente + data/hora) |
 
 Realtime (**invalidação**, sem payload de negócio): `OperacoesHub` (`/hubs/operacoes`, autenticado) nas páginas operacionais; `TvHub` (`/hubs/tv`, anónimo) na TV. Eventos: `dossier66Alterado`, `dossier65Alterado`, `kappsAlterado`, `encomendaAlterada` → refetch das APIs existentes. Em `/picking`, `dossier66Alterado` actualiza também a lista de encomendas. Detalhe: [`PROJECT-STATE.md`](./PROJECT-STATE.md).
 
