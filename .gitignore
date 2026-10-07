@@ -1,0 +1,19 @@
+**/bin/
+**/obj/
+**/dp-keys/
+**/artifacts/
+*.user
+appsettings.*.local.json
+.vs/
+node_modules/
+dist/
+.env
+.env.local
+*.log
+# Logotipo de marca — não publicar no GitHub
+logo-lsflores.png
+**/logo-lsflores.png
+src/frontend/src/assets/logo-lsflores.png
+
+dev-dist/
+**/dev-dist/

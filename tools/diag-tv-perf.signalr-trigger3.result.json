@@ -1,0 +1,60 @@
+{
+  "base": "http://localhost:5080",
+  "startedAt": "2026-09-29T14:25:32.865Z",
+  "cycles": [],
+  "signalr": {
+    "connected": true,
+    "connectMs": 45302,
+    "connectionId": null,
+    "listenMs": 45000,
+    "events": [
+      {
+        "event": "dossier66Alterado",
+        "receivedAt": "2026-09-29T14:25:37.013Z",
+        "perfNow": 4173.4332,
+        "args": []
+      }
+    ],
+    "eventTriggeredCarregar": {
+      "event": {
+        "event": "dossier66Alterado",
+        "receivedAt": "2026-09-29T14:25:37.013Z",
+        "perfNow": 4173.4332,
+        "args": []
+      },
+      "eventToCarregarStartMs": 216,
+      "carregar": {
+        "cycle": "signalr-trigger",
+        "cycleStart": "2026-09-29T14:25:37.235Z",
+        "cycleEnd": "2026-09-29T14:25:40.796Z",
+        "wave1Ms": 340,
+        "kappsMs": 3221,
+        "totalMs": 3562,
+        "dominantWave": "kapps",
+        "counts": {
+          "picking": 5,
+          "separacao": 7,
+          "emEntrega": 2,
+          "kappsHttp": 12,
+          "kappsOk": 12,
+          "kappsFail": 0
+        },
+        "wave1TimingsMs": {
+          "centroEstados": 22,
+          "encomendasAbertas": 339,
+          "pickingDossiers_checkInFalse": 121,
+          "pickingDossiers_checkInTrue": 119
+        },
+        "wave1Ok": true,
+        "wave1Errors": [],
+        "kapps": {
+          "avgMs": 1294,
+          "minMs": 337,
+          "maxMs": 3219,
+          "sampleErrors": []
+        }
+      }
+    }
+  },
+  "endedAt": "2026-09-29T14:26:18.257Z"
+}
