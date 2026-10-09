@@ -7,6 +7,7 @@
 | SoT operacional | [`PROJECT-STATE.md`](./PROJECT-STATE.md) |
 | Topologia | [`deployment-architecture.md`](./deployment-architecture.md) |
 | Actualizado | 2026-10-09 |
+| Go-live (definição OK + preparação) | [`GO_LIVE_SEMANA.md`](./GO_LIVE_SEMANA.md) |
 
 **Objectivo:** checklist operacional para a **primeira** instalação em produção (ou cópia UAT → Prod).  
 **Não** executar em produção o script de seed de testes `sql/090_seed_clone_encomendas_teste.sql`.

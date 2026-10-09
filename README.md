@@ -45,6 +45,7 @@ Arranque: [`src/backend/README.md`](./src/backend/README.md) · [`src/frontend/R
 ## Implantação
 
 **On-premises:** Windows Server 2022+ · IIS 10+ · ASP.NET Core .NET 8 · SQL Server PHC.  
+- **Go-live (semana):** [`docs/GO_LIVE_SEMANA.md`](./docs/GO_LIVE_SEMANA.md)  
 - **Passo a passo no servidor do cliente:** [`docs/PASSO_A_PASSO_PRODUCAO.md`](./docs/PASSO_A_PASSO_PRODUCAO.md)  
 - Topologia / TLS / DR: [`docs/deployment-architecture.md`](./docs/deployment-architecture.md)
 
