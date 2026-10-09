@@ -30,6 +30,7 @@ Raiz do repo: [`../README.md`](../README.md).
 | Implantação IIS | `deployment-architecture.md` |
 | **Passo a passo produção (cliente)** | [`PASSO_A_PASSO_PRODUCAO.md`](./PASSO_A_PASSO_PRODUCAO.md) |
 | **Go-live desta semana** | [`GO_LIVE_SEMANA.md`](./GO_LIVE_SEMANA.md) |
+| IIS no PC local (ensaio) | [`LOCAL_IIS.md`](./LOCAL_IIS.md) |
 | Briefing orientador | `validacao-orientador.md` |
 | Plano de sprints (histórico) | `implementation-plan.md` |
 

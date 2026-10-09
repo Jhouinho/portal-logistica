@@ -73,12 +73,16 @@ try
 
     app.UseSerilogRequestLogging();
     app.UseCors("Spa");
+    // SPA estática (IIS / publish com wwwroot) — mesmo origin que /api e /hubs (cookies).
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
     app.MapHub<OperacoesHub>(OperacoesHub.Path);
     app.MapHub<TvHub>(TvHub.Path);
     app.MapHealthChecks("/health");
+    app.MapFallbackToFile("index.html");
 
     app.Run();
 }
