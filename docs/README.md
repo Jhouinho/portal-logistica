@@ -28,6 +28,7 @@ Raiz do repo: [`../README.md`](../README.md).
 | Identity `u_HcaLogi*` | `auth-portal-identity.md`, `fase-0b-u-HcaLogi-identity-tables.md` |
 | Realtime / TvHub / `tv-kapps-resumo` | `PROJECT-STATE.md`, `api-contract.md` |
 | Implantação IIS | `deployment-architecture.md` |
+| **Passo a passo produção (cliente)** | [`PASSO_A_PASSO_PRODUCAO.md`](./PASSO_A_PASSO_PRODUCAO.md) |
 | Briefing orientador | `validacao-orientador.md` |
 | Plano de sprints (histórico) | `implementation-plan.md` |
 
