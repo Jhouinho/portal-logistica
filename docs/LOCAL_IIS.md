@@ -38,8 +38,18 @@ Remove-WebAppPool PortalLocalAppPool
 # opcional: Remove-Item C:\inetpub\portal-local -Recurse -Force
 ```
 
+## Levar para o cliente (reaproveitar)
+
+| Do local | No cliente |
+| --- | --- |
+| Mesmo modelo (1 site = API+SPA) | Sim — já validado |
+| `.\tools\publish-release.ps1 -Zip` | Copiar o zip; preencher `appsettings.Production.json` |
+| `.\tools\iis-install-site.ps1` | Criar site/App Pool (Admin) |
+| Hosting Bundle 8 + URL Rewrite | Instalar no servidor (iguais ao teu PC) |
+| Connection string / passwords | **Nunca** copiar o `appsettings.Production.json` local |
+
 ## Notas
 
 - Ambiente: `ASPNETCORE_ENVIRONMENT=Production` no `web.config` do publish.
 - SQL: usa a BD configurada em `appsettings.Production.json` (rede acessível a partir do PC).
-- Ensaio do cliente: seguir depois [`PASSO_A_PASSO_PRODUCAO.md`](./PASSO_A_PASSO_PRODUCAO.md) / [`GO_LIVE_SEMANA.md`](./GO_LIVE_SEMANA.md).
+- Go-live: [`PASSO_A_PASSO_PRODUCAO.md`](./PASSO_A_PASSO_PRODUCAO.md) · [`GO_LIVE_SEMANA.md`](./GO_LIVE_SEMANA.md).

@@ -132,43 +132,46 @@ C:\inetpub\portal\dp-keys
 
 ## 5. Build na máquina de desenvolvimento / CI
 
-Clonar ou actualizar o código:
+**Modelo validado no PC local (IIS :8088):** API + SPA no **mesmo site** (`wwwroot` + `MapFallbackToFile`) — cookies e SignalR sem CORS entre portas.
+
+### 5.0 Atalho (recomendado)
+
+No teu PC (já ensaiado):
 
 ```powershell
-git clone https://github.com/Jhouinho/portal-logistica.git
-# ou: git pull
-Set-Location -LiteralPath "...\portal-logistica"
+Set-Location -LiteralPath "...\Liliana&Serodio"   # ou clone portal-logistica
+.\tools\publish-release.ps1 -Zip
 ```
 
-### 5.1 API
+Isto gera `releases\portal-AAAAAMMDD-HHMM\` (+ `.zip`) com API + SPA, `web.config` em Production e `appsettings.Production.TEMPLATE.json` (**sem** passwords).
+
+No servidor:
 
 ```powershell
-Set-Location .\src\backend
-dotnet publish .\src\Portal.Api\Portal.Api.csproj -c Release -o .\publish-api
+# 1) Extrair zip → C:\inetpub\portal\api
+# 2) Copiar TEMPLATE → appsettings.Production.json e preencher connection string / URL
+# 3) IIS (Admin):
+.\tools\iis-install-site.ps1 -PhysicalPath 'C:\inetpub\portal\api' -Port 80 -SiteName Portal
+# ou HTTPS com host header / binding no IIS Manager
 ```
 
-Copiar `publish-api\*` → `C:\inetpub\portal\api` no servidor.
+Ensaio local: [`LOCAL_IIS.md`](./LOCAL_IIS.md).
 
-### 5.2 Frontend
-
-**Opção A — mesmo origin (recomendado):** a SPA chama `/api` e `/hubs` no mesmo host (IIS faz reverse proxy ou a API está no mesmo site). Build **sem** `VITE_API_BASE`:
+### 5.1 Manual (equivalente)
 
 ```powershell
+# Frontend
 Set-Location .\src\frontend
 npm ci
 npm run build
+
+# API
+Set-Location ..\backend
+dotnet publish .\src\Portal.Api\Portal.Api.csproj -c Release -o C:\inetpub\portal\api
+Copy-Item ..\frontend\dist\* C:\inetpub\portal\api\wwwroot\ -Recurse -Force
 ```
 
-Copiar `dist\*` → `C:\inetpub\portal\web`.
-
-**Opção B — API noutro host/porta:** no build:
-
-```powershell
-$env:VITE_API_BASE = "https://portal-api.cliente.local"
-npm run build
-```
-
-Nesse caso configurar **CORS** na API com a origem exacta da SPA e cookies `SameSite` adequados.
+**Não** uses dois sites/portas em HTTP sem HTTPS: cookies (`SameSite=Lax`) falham entre origins.
 
 ---
 

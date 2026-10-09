@@ -14,6 +14,8 @@ dist/
 logo-lsflores.png
 **/logo-lsflores.png
 src/frontend/src/assets/logo-lsflores.png
+releases/
+*.zip
 
 dev-dist/
 **/dev-dist/
