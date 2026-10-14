@@ -1,14 +1,81 @@
 /* ============================================================
-   DEPLOY CLIENTE — Portal Liliana & Seródio
+   DEPLOY CLIENTE -- COMPLETO (historico - inclui legado BI/BO)
    Gerado por tools/gen_sql_cliente_md.py
-   Pré-requisito: campos U_* no Framework.
-   NÃO inclui 090 seed de testes.
+   Pre-requisito: campos U_* em BI2/BO3/BO2/US/STOBS.
+   1) Correr 000_criar_login_portal_app.sql (ajustar BD/password)
+   2) Correr este ficheiro
+   NAO inclui 090 seed de testes.
+   AVISO: pack historico inclui scripts pre-041 (BI/BO).
+   Em cliente com campos em BI2/BO3 usar DEPLOY_CLIENTE_BI2_BO3.sql
    ============================================================ */
 SET NOCOUNT ON;
 GO
 
 
-/* ========== 01 / 010_create_view_HCA_utilizadores.sql ========== */
+/* ========== 01 / 000_criar_login_portal_app.sql ========== */
+-- =============================================================================
+-- Criar login/user SQL da aplicação (correr ANTES dos grants).
+-- Ajustar: nome da BD, password, e o nome do user se não for portal_app.
+-- =============================================================================
+
+USE [master];
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'portal_app')
+BEGIN
+    CREATE LOGIN [portal_app] WITH PASSWORD = N'TROCAR_PASSWORD_FORTE', CHECK_POLICY = ON;
+END
+GO
+
+-- >>> SUBSTITUIR pelo nome real da BD PHC do cliente <<<
+USE [NOME_BD_PHC];
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'portal_app')
+BEGIN
+    CREATE USER [portal_app] FOR LOGIN [portal_app];
+END
+GO
+
+PRINT N'OK: login/user portal_app (confirma password e nome da BD).';
+GO
+GO
+
+
+/* ========== 02 / 000_verificar_campos_bi2_bo3.sql ========== */
+-- =============================================================================
+-- Verificar se os campos de utilizador existem nas tabelas correctas (BI2/BO3).
+-- Esperado: COL_LENGTH NOT NULL para todos.
+-- =============================================================================
+
+SELECT
+    N'BI2.u_qtdaut'   AS campo, COL_LENGTH(N'dbo.bi2', N'u_qtdaut')   AS bytes
+UNION ALL SELECT N'BI2.u_qtdautur', COL_LENGTH(N'dbo.bi2', N'u_qtdautur')
+UNION ALL SELECT N'BI2.u_qtdautdt', COL_LENGTH(N'dbo.bi2', N'u_qtdautdt')
+UNION ALL SELECT N'BI2.u_qttorig',  COL_LENGTH(N'dbo.bi2', N'u_qttorig')
+UNION ALL SELECT N'BI2.u_prcorig',  COL_LENGTH(N'dbo.bi2', N'u_prcorig')
+UNION ALL SELECT N'BI2.u_prevId',   COL_LENGTH(N'dbo.bi2', N'u_prevId')
+UNION ALL SELECT N'BI.u_cor',       COL_LENGTH(N'dbo.bi',  N'u_cor')
+UNION ALL SELECT N'BO3.u_pickrdy',  COL_LENGTH(N'dbo.bo3', N'u_pickrdy')
+UNION ALL SELECT N'BO3.u_pickrdr',  COL_LENGTH(N'dbo.bo3', N'u_pickrdr')
+UNION ALL SELECT N'BO3.u_pickrdt',  COL_LENGTH(N'dbo.bo3', N'u_pickrdt')
+UNION ALL SELECT N'BO3.u_pickstat', COL_LENGTH(N'dbo.bo3', N'u_pickstat')
+UNION ALL SELECT N'BO3.u_pickcobs', COL_LENGTH(N'dbo.bo3', N'u_pickcobs')
+UNION ALL SELECT N'BO3.u_urgente',  COL_LENGTH(N'dbo.bo3', N'u_urgente')
+UNION ALL SELECT N'BO3.u_chkin',    COL_LENGTH(N'dbo.bo3', N'u_chkin')
+UNION ALL SELECT N'BO3.u_chkinur',  COL_LENGTH(N'dbo.bo3', N'u_chkinur')
+UNION ALL SELECT N'BO3.u_chkindt',  COL_LENGTH(N'dbo.bo3', N'u_chkindt')
+UNION ALL SELECT N'BO3.u_modExp',   COL_LENGTH(N'dbo.bo3', N'u_modExp')
+UNION ALL SELECT N'BO2.u_mEntrega', COL_LENGTH(N'dbo.bo2', N'u_mEntrega')
+UNION ALL SELECT N'US.u_usaPort',   COL_LENGTH(N'dbo.us',  N'u_usaPort')
+UNION ALL SELECT N'STOBS.u_dispPort', COL_LENGTH(N'dbo.stobs', N'u_dispPort');
+GO
+
+-- Se algum bytes IS NULL → campo em falta ou na tabela errada (ex. criado em BI em vez de BI2).
+GO
+
+
+/* ========== 03 / 010_create_view_HCA_utilizadores.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 010_create_view_HCA_utilizadores.sql
@@ -35,7 +102,7 @@ GO
 GO
 
 
-/* ========== 02 / 012_create_view_HCA_encomendas_abertas.sql ========== */
+/* ========== 04 / 012_create_view_HCA_encomendas_abertas.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 037_alter_view_HCA_encomendas_abertas_picking.sql
@@ -98,7 +165,7 @@ GO
 GO
 
 
-/* ========== 03 / 014_create_view_HCA_encomenda_linhas.sql ========== */
+/* ========== 05 / 014_create_view_HCA_encomenda_linhas.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 014_create_view_HCA_encomenda_linhas.sql
@@ -160,7 +227,7 @@ GO
 GO
 
 
-/* ========== 04 / 016_create_view_HCA_rastreio_artigos.sql ========== */
+/* ========== 06 / 016_create_view_HCA_rastreio_artigos.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 016_create_view_HCA_rastreio_artigos.sql
@@ -213,7 +280,7 @@ GO
 GO
 
 
-/* ========== 05 / 018_create_view_HCA_artigo_encomendas.sql ========== */
+/* ========== 07 / 018_create_view_HCA_artigo_encomendas.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 018_create_view_HCA_artigo_encomendas.sql
@@ -269,7 +336,7 @@ GO
 GO
 
 
-/* ========== 06 / 020_create_sp_HCA_validar_login.sql ========== */
+/* ========== 08 / 020_create_sp_HCA_validar_login.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 020_create_sp_HCA_validar_login.sql
@@ -310,7 +377,7 @@ GO
 GO
 
 
-/* ========== 07 / 022_create_sp_HCA_atualizar_linha_qtt_preco.sql ========== */
+/* ========== 09 / 022_create_sp_HCA_atualizar_linha_qtt_preco.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 022_create_sp_HCA_atualizar_linha_qtt_preco.sql
@@ -462,7 +529,7 @@ GO
 GO
 
 
-/* ========== 08 / 024_create_sp_HCA_atualizar_qtd_autorizada.sql ========== */
+/* ========== 10 / 024_create_sp_HCA_atualizar_qtd_autorizada.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 024_create_sp_HCA_atualizar_qtd_autorizada.sql
@@ -636,7 +703,7 @@ GO
 GO
 
 
-/* ========== 09 / 026_create_sp_HCA_alocacao_proporcional.sql ========== */
+/* ========== 11 / 026_create_sp_HCA_alocacao_proporcional.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 035_alter_sp_HCA_alocacao_proporcional_disponivel_cor.sql
@@ -845,7 +912,7 @@ GO
 GO
 
 
-/* ========== 10 / 028_add_us_u_usaPort.sql ========== */
+/* ========== 12 / 028_add_us_u_usaPort.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 028_add_us_u_usaPort.sql
@@ -869,7 +936,7 @@ GO
 GO
 
 
-/* ========== 11 / 029_create_u_HcaLogi_identity_tables.sql ========== */
+/* ========== 13 / 029_create_u_HcaLogi_identity_tables.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 029_create_u_HcaLogi_identity_tables.sql
@@ -1053,55 +1120,68 @@ GO
 GO
 
 
-/* ========== 12 / 030_grant_portal_app.sql ========== */
+/* ========== 14 / 030_grant_portal_app.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 030_grant_portal_app.sql
 -- Ambiente: UAT primeiro; Produção só no GO formal
 -- =============================================================================
--- Substituir [portal_app] pelo nome do utilizador SQL da aplicação.
--- A aplicação NÃO deve ter SELECT/UPDATE directo em BO/BI/ST/CL/US.
+-- Pré-requisito: sql/000_criar_login_portal_app.sql (login/user portal_app).
+-- No pack BI2/BO3 este script corre no FIM (depois de criar vistas/SPs).
 -- =============================================================================
 
--- Exemplo de criação do login/user (ajustar servidor / password):
-/*
-USE [master];
-CREATE LOGIN [portal_app] WITH PASSWORD = N'TROCAR_PASSWORD_FORTE', CHECK_POLICY = ON;
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'portal_app')
+BEGIN
+    PRINT N'AVISO: user portal_app inexistente — saltar GRANTs. Correr 000_criar_login_portal_app.sql e reexecutar este script.';
+END
+ELSE
+BEGIN
+    IF OBJECT_ID(N'dbo.view_HCA_utilizadores', N'V') IS NOT NULL
+        GRANT SELECT ON dbo.view_HCA_utilizadores TO [portal_app];
+    IF OBJECT_ID(N'dbo.view_HCA_encomendas_abertas', N'V') IS NOT NULL
+        GRANT SELECT ON dbo.view_HCA_encomendas_abertas TO [portal_app];
+    IF OBJECT_ID(N'dbo.view_HCA_encomenda_linhas', N'V') IS NOT NULL
+        GRANT SELECT ON dbo.view_HCA_encomenda_linhas TO [portal_app];
+    IF OBJECT_ID(N'dbo.view_HCA_rastreio_artigos', N'V') IS NOT NULL
+        GRANT SELECT ON dbo.view_HCA_rastreio_artigos TO [portal_app];
+    IF OBJECT_ID(N'dbo.view_HCA_artigo_encomendas', N'V') IS NOT NULL
+        GRANT SELECT ON dbo.view_HCA_artigo_encomendas TO [portal_app];
+    IF OBJECT_ID(N'dbo.view_HCA_cortes_quantidade', N'V') IS NOT NULL
+        GRANT SELECT ON dbo.view_HCA_cortes_quantidade TO [portal_app];
 
-USE [NOME_BD_PHC_UAT];  -- substituir
-CREATE USER [portal_app] FOR LOGIN [portal_app];
-*/
+    IF OBJECT_ID(N'dbo.sp_HCA_validar_login', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_validar_login TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_atualizar_linha_qtt_preco', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_atualizar_linha_qtt_preco TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_atualizar_qtd_autorizada', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_atualizar_qtd_autorizada TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_alocacao_proporcional', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_alocacao_proporcional TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_marcar_pronta_picking', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_marcar_pronta_picking TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_listar_utilizadores_admin', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_listar_utilizadores_admin TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_actualizar_usa_port', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_actualizar_usa_port TO [portal_app];
 
--- Vistas (leitura)
-GRANT SELECT ON dbo.view_HCA_utilizadores TO [portal_app];
-GRANT SELECT ON dbo.view_HCA_encomendas_abertas TO [portal_app];
-GRANT SELECT ON dbo.view_HCA_encomenda_linhas TO [portal_app];
-GRANT SELECT ON dbo.view_HCA_rastreio_artigos TO [portal_app];
-GRANT SELECT ON dbo.view_HCA_artigo_encomendas TO [portal_app];
-GRANT SELECT ON dbo.view_HCA_cortes_quantidade TO [portal_app];
+    IF OBJECT_ID(N'dbo.u_HcaLogiUsers', N'U') IS NOT NULL
+    BEGIN
+        GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUsers TO [portal_app];
+        GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiRoles TO [portal_app];
+        GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserRoles TO [portal_app];
+        GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserClaims TO [portal_app];
+        GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserLogins TO [portal_app];
+        GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserTokens TO [portal_app];
+        GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiRoleClaims TO [portal_app];
+    END
 
--- Procedimentos (execução)
-GRANT EXECUTE ON dbo.sp_HCA_validar_login TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_atualizar_linha_qtt_preco TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_atualizar_qtd_autorizada TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_alocacao_proporcional TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_marcar_pronta_picking TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_listar_utilizadores_admin TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_actualizar_usa_port TO [portal_app];
-
--- Identity (EF) — mesma BD PHC
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUsers TO [portal_app];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiRoles TO [portal_app];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserRoles TO [portal_app];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserClaims TO [portal_app];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserLogins TO [portal_app];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiUserTokens TO [portal_app];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.u_HcaLogiRoleClaims TO [portal_app];
+    PRINT N'OK: GRANTs portal_app (030).';
+END
 GO
 GO
 
 
-/* ========== 13 / 031_create_sp_HCA_listar_utilizadores_admin.sql ========== */
+/* ========== 15 / 031_create_sp_HCA_listar_utilizadores_admin.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 031_create_sp_HCA_listar_utilizadores_admin.sql
@@ -1130,7 +1210,7 @@ GO
 GO
 
 
-/* ========== 14 / 032_create_sp_HCA_actualizar_usa_port.sql ========== */
+/* ========== 16 / 032_create_sp_HCA_actualizar_usa_port.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 032_create_sp_HCA_actualizar_usa_port.sql
@@ -1177,7 +1257,7 @@ GO
 GO
 
 
-/* ========== 15 / 033_seed_role_Admin.sql ========== */
+/* ========== 17 / 033_seed_role_Admin.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 033_seed_role_Admin.sql
@@ -1265,7 +1345,7 @@ GO
 GO
 
 
-/* ========== 16 / 034_alter_view_HCA_encomenda_linhas_unidade.sql ========== */
+/* ========== 18 / 034_alter_view_HCA_encomenda_linhas_unidade.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 034_alter_view_HCA_encomenda_linhas_unidade.sql
@@ -1320,7 +1400,7 @@ GO
 GO
 
 
-/* ========== 17 / 035_alter_sp_HCA_alocacao_proporcional_disponivel_cor.sql ========== */
+/* ========== 19 / 035_alter_sp_HCA_alocacao_proporcional_disponivel_cor.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 035_alter_sp_HCA_alocacao_proporcional_disponivel_cor.sql
@@ -1537,7 +1617,7 @@ GO
 GO
 
 
-/* ========== 18 / 036_alter_sp_HCA_atualizar_qtd_autorizada_permitir_stock.sql ========== */
+/* ========== 20 / 036_alter_sp_HCA_atualizar_qtd_autorizada_permitir_stock.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 024_create_sp_HCA_atualizar_qtd_autorizada.sql
@@ -1711,7 +1791,7 @@ GO
 GO
 
 
-/* ========== 19 / 037_alter_view_HCA_encomendas_abertas_picking.sql ========== */
+/* ========== 21 / 037_alter_view_HCA_encomendas_abertas_picking.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 037_alter_view_HCA_encomendas_abertas_picking.sql
@@ -1774,7 +1854,7 @@ GO
 GO
 
 
-/* ========== 20 / 037b_add_bo_u_upickrdt_if_missing.sql ========== */
+/* ========== 22 / 037b_add_bo_u_upickrdt_if_missing.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 037b_add_bo_u_upickrdt_if_missing.sql
@@ -1791,7 +1871,7 @@ GO
 GO
 
 
-/* ========== 21 / 038_create_sp_HCA_marcar_pronta_picking.sql ========== */
+/* ========== 23 / 038_create_sp_HCA_marcar_pronta_picking.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 038_create_sp_HCA_marcar_pronta_picking.sql
@@ -1917,7 +1997,7 @@ GO
 GO
 
 
-/* ========== 22 / 039_alter_views_excluir_pronta_picking.sql ========== */
+/* ========== 24 / 039_alter_views_excluir_pronta_picking.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 039_alter_views_excluir_pronta_picking.sql
@@ -2052,7 +2132,7 @@ GO
 GO
 
 
-/* ========== 23 / 040_alter_sp_HCA_marcar_pronta_picking_linhas_zero.sql ========== */
+/* ========== 25 / 040_alter_sp_HCA_marcar_pronta_picking_linhas_zero.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 040_alter_sp_HCA_marcar_pronta_picking_linhas_zero.sql
@@ -2183,7 +2263,7 @@ GO
 GO
 
 
-/* ========== 24 / 041_migrate_user_fields_bi2_bo3.sql ========== */
+/* ========== 26 / 041_migrate_user_fields_bi2_bo3.sql ========== */
 -- =============================================================================
 -- Liliana & SerÃ³dio â€” Portal LogÃ­stico
 -- Script: 041_migrate_user_fields_bi2_bo3.sql
@@ -3118,7 +3198,7 @@ GO
 GO
 
 
-/* ========== 25 / 042_cor_efectiva_bi_u_cor.sql ========== */
+/* ========== 27 / 042_cor_efectiva_bi_u_cor.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 042_cor_efectiva_bi_u_cor.sql
@@ -3185,7 +3265,7 @@ GO
 GO
 
 
-/* ========== 26 / 043_create_view_HCA_cortes_quantidade.sql ========== */
+/* ========== 28 / 043_create_view_HCA_cortes_quantidade.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 043_create_view_HCA_cortes_quantidade.sql
@@ -3243,7 +3323,7 @@ GO
 GO
 
 
-/* ========== 27 / 044_add_bo3_u_urgente_views.sql ========== */
+/* ========== 29 / 044_add_bo3_u_urgente_views.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 044_add_bo3_u_urgente_views.sql
@@ -3408,7 +3488,7 @@ GO
 GO
 
 
-/* ========== 28 / 046_u_qttorig_original_inicial.sql ========== */
+/* ========== 30 / 046_u_qttorig_original_inicial.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 046_u_qttorig_original_inicial.sql
@@ -3616,8 +3696,8 @@ GO
 GO
 
 
-/* ========== 29 / 047_alter_sp_HCA_marcar_pronta_picking_reverter_quantidades.sql ========== */
-﻿-- =============================================================================
+/* ========== 31 / 047_alter_sp_HCA_marcar_pronta_picking_reverter_quantidades.sql ========== */
+-- =============================================================================
 -- Liliana & Serodio - Portal Logistico
 -- Script: 047_alter_sp_HCA_marcar_pronta_picking_reverter_quantidades.sql
 -- Ambiente: UAT / teste; Producao so no GO formal
@@ -3808,7 +3888,7 @@ GO
 GO
 
 
-/* ========== 30 / 048_create_sp_HCA_marcar_fecho_picking_dossier.sql ========== */
+/* ========== 32 / 048_create_sp_HCA_marcar_fecho_picking_dossier.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 048_create_sp_HCA_marcar_fecho_picking_dossier.sql
@@ -3876,7 +3956,7 @@ GO
 GO
 
 
-/* ========== 31 / 049_alter_views_bo3_u_pickstat.sql ========== */
+/* ========== 33 / 049_alter_views_bo3_u_pickstat.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 049_alter_views_bo3_u_pickstat.sql
@@ -4000,7 +4080,7 @@ GO
 GO
 
 
-/* ========== 32 / 050_alter_sp_HCA_marcar_pronta_picking_u_pickstat.sql ========== */
+/* ========== 34 / 050_alter_sp_HCA_marcar_pronta_picking_u_pickstat.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 050_alter_sp_HCA_marcar_pronta_picking_u_pickstat.sql
@@ -4213,7 +4293,7 @@ GO
 GO
 
 
-/* ========== 33 / 051_create_sp_HCA_picking_workflow.sql ========== */
+/* ========== 35 / 051_create_sp_HCA_picking_workflow.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 051_create_sp_HCA_picking_workflow.sql
@@ -4540,29 +4620,32 @@ GO
 GO
 
 
-/* ========== 34 / 052_grant_picking_workflow_sps.sql ========== */
+/* ========== 36 / 052_grant_picking_workflow_sps.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 052_grant_picking_workflow_sps.sql
--- Ambiente: UAT / teste; Produção só no GO formal
 -- =============================================================================
--- GRANT portal_app (quando o login existir no ambiente):
--- GRANT EXECUTE ON dbo.sp_HCA_picking_start TO [portal_app];
--- GRANT EXECUTE ON dbo.sp_HCA_picking_complete TO [portal_app];
--- GRANT EXECUTE ON dbo.sp_HCA_picking_cancel TO [portal_app];
--- GRANT EXECUTE ON dbo.sp_HCA_picking_back_to_ready TO [portal_app];
--- GRANT EXECUTE ON dbo.sp_HCA_picking_reopen TO [portal_app];
--- =============================================================================
-GRANT EXECUTE ON dbo.sp_HCA_picking_start TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_picking_complete TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_picking_cancel TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_picking_back_to_ready TO [portal_app];
-GRANT EXECUTE ON dbo.sp_HCA_picking_reopen TO [portal_app];
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'portal_app')
+    PRINT N'AVISO: user portal_app inexistente — saltar GRANTs 052.';
+ELSE
+BEGIN
+    IF OBJECT_ID(N'dbo.sp_HCA_picking_start', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_picking_start TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_picking_complete', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_picking_complete TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_picking_cancel', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_picking_cancel TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_picking_back_to_ready', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_picking_back_to_ready TO [portal_app];
+    IF OBJECT_ID(N'dbo.sp_HCA_picking_reopen', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_picking_reopen TO [portal_app];
+    PRINT N'OK: GRANTs picking workflow (052).';
+END
 GO
 GO
 
 
-/* ========== 35 / 053_backfill_bo3_u_pickstat_ready.sql ========== */
+/* ========== 37 / 053_backfill_bo3_u_pickstat_ready.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 053_backfill_bo3_u_pickstat_ready.sql
@@ -4585,7 +4668,7 @@ GO
 GO
 
 
-/* ========== 36 / 054_alter_view_HCA_cortes_quantidade_fechada_picking_concluido.sql ========== */
+/* ========== 38 / 054_alter_view_HCA_cortes_quantidade_fechada_picking_concluido.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 054_alter_view_HCA_cortes_quantidade_fechada_picking_concluido.sql
@@ -4642,7 +4725,7 @@ GO
 GO
 
 
-/* ========== 37 / 055_alter_view_HCA_cortes_quantidade_so_fechadas.sql ========== */
+/* ========== 39 / 055_alter_view_HCA_cortes_quantidade_so_fechadas.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 055_alter_view_HCA_cortes_quantidade_so_fechadas.sql
@@ -4700,7 +4783,7 @@ GO
 GO
 
 
-/* ========== 38 / 056_alter_sp_picking_cancel_motivo_u_pickcobs.sql ========== */
+/* ========== 40 / 056_alter_sp_picking_cancel_motivo_u_pickcobs.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 056_alter_sp_picking_cancel_motivo_u_pickcobs.sql
@@ -5007,7 +5090,7 @@ GO
 GO
 
 
-/* ========== 39 / 057_create_sp_HCA_marcar_urgente_encomenda.sql ========== */
+/* ========== 41 / 057_create_sp_HCA_marcar_urgente_encomenda.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 057_create_sp_HCA_marcar_urgente_encomenda.sql
@@ -5079,7 +5162,7 @@ GO
 GO
 
 
-/* ========== 40 / 058_create_sp_HCA_cancelar_encomenda.sql ========== */
+/* ========== 42 / 058_create_sp_HCA_cancelar_encomenda.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 058_create_sp_HCA_cancelar_encomenda.sql
@@ -5178,7 +5261,7 @@ GO
 GO
 
 
-/* ========== 41 / 059_create_sp_HCA_marcar_checkin_dossier.sql ========== */
+/* ========== 43 / 059_create_sp_HCA_marcar_checkin_dossier.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 059_create_sp_HCA_marcar_checkin_dossier.sql
@@ -5294,17 +5377,25 @@ GO
 GO
 
 
-/* ========== 42 / 059b_grant_sp_HCA_marcar_checkin_dossier.sql ========== */
+/* ========== 44 / 059b_grant_sp_HCA_marcar_checkin_dossier.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 059b_grant_sp_HCA_marcar_checkin_dossier.sql
 -- =============================================================================
-GRANT EXECUTE ON dbo.sp_HCA_marcar_checkin_dossier TO [portal_app];
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'portal_app')
+    PRINT N'AVISO: user portal_app inexistente — saltar GRANT 059b.';
+ELSE IF OBJECT_ID(N'dbo.sp_HCA_marcar_checkin_dossier', N'P') IS NULL
+    PRINT N'AVISO: sp_HCA_marcar_checkin_dossier inexistente — saltar GRANT 059b.';
+ELSE
+BEGIN
+    GRANT EXECUTE ON dbo.sp_HCA_marcar_checkin_dossier TO [portal_app];
+    PRINT N'OK: GRANT 059b.';
+END
 GO
 GO
 
 
-/* ========== 43 / 060_create_sp_HCA_reverter_checkin_dossier.sql ========== */
+/* ========== 45 / 060_create_sp_HCA_reverter_checkin_dossier.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 060_create_sp_HCA_reverter_checkin_dossier.sql
@@ -5412,17 +5503,25 @@ GO
 GO
 
 
-/* ========== 44 / 060b_grant_sp_HCA_reverter_checkin_dossier.sql ========== */
+/* ========== 46 / 060b_grant_sp_HCA_reverter_checkin_dossier.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 060b_grant_sp_HCA_reverter_checkin_dossier.sql
 -- =============================================================================
-GRANT EXECUTE ON dbo.sp_HCA_reverter_checkin_dossier TO [portal_app];
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'portal_app')
+    PRINT N'AVISO: user portal_app inexistente — saltar GRANT 060b.';
+ELSE IF OBJECT_ID(N'dbo.sp_HCA_reverter_checkin_dossier', N'P') IS NULL
+    PRINT N'AVISO: sp_HCA_reverter_checkin_dossier inexistente — saltar GRANT 060b.';
+ELSE
+BEGIN
+    GRANT EXECUTE ON dbo.sp_HCA_reverter_checkin_dossier TO [portal_app];
+    PRINT N'OK: GRANT 060b.';
+END
 GO
 GO
 
 
-/* ========== 45 / 061_alter_view_HCA_encomenda_linhas_disponivel_portal.sql ========== */
+/* ========== 47 / 061_alter_view_HCA_encomenda_linhas_disponivel_portal.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 061_alter_view_HCA_encomenda_linhas_disponivel_portal.sql
@@ -5496,7 +5595,7 @@ GO
 GO
 
 
-/* ========== 46 / 062_create_u_HcaPrevEntrada_tables.sql ========== */
+/* ========== 48 / 062_create_u_HcaPrevEntrada_tables.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 062_create_u_HcaPrevEntrada_tables.sql
@@ -5562,7 +5661,7 @@ GO
 GO
 
 
-/* ========== 47 / 063_create_sp_HCA_previsoes_entrada.sql ========== */
+/* ========== 49 / 063_create_sp_HCA_previsoes_entrada.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 063_create_sp_HCA_previsoes_entrada.sql
@@ -5762,7 +5861,7 @@ GO
 GO
 
 
-/* ========== 48 / 063b_grant_sp_HCA_previsoes_entrada.sql ========== */
+/* ========== 50 / 063b_grant_sp_HCA_previsoes_entrada.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 063b_grant_sp_HCA_previsoes_entrada.sql
@@ -5785,7 +5884,7 @@ GO
 GO
 
 
-/* ========== 49 / 064_alter_u_HcaPrevEntrada_ciclo.sql ========== */
+/* ========== 51 / 064_alter_u_HcaPrevEntrada_ciclo.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 064_alter_u_HcaPrevEntrada_ciclo.sql
@@ -5866,7 +5965,7 @@ GO
 GO
 
 
-/* ========== 50 / 065_alter_sp_HCA_previsoes_entrada_ciclo.sql ========== */
+/* ========== 52 / 065_alter_sp_HCA_previsoes_entrada_ciclo.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 065_alter_sp_HCA_previsoes_entrada_ciclo.sql
@@ -6129,7 +6228,7 @@ GO
 GO
 
 
-/* ========== 51 / 065b_grant_sp_HCA_previsoes_entrada_ciclo.sql ========== */
+/* ========== 53 / 065b_grant_sp_HCA_previsoes_entrada_ciclo.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 065b_grant_sp_HCA_previsoes_entrada_ciclo.sql
@@ -6153,7 +6252,7 @@ GO
 GO
 
 
-/* ========== 52 / 068_alter_sp_HCA_atualizar_qtd_autorizada_prev.sql ========== */
+/* ========== 54 / 068_alter_sp_HCA_atualizar_qtd_autorizada_prev.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 068_alter_sp_HCA_atualizar_qtd_autorizada_prev.sql
@@ -6531,7 +6630,7 @@ GO
 GO
 
 
-/* ========== 53 / 069_alter_sp_HCA_alocacao_proporcional_prev.sql ========== */
+/* ========== 55 / 069_alter_sp_HCA_alocacao_proporcional_prev.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 069_alter_sp_HCA_alocacao_proporcional_prev.sql
@@ -6828,7 +6927,7 @@ GO
 GO
 
 
-/* ========== 54 / 070_alter_picking_clear_u_prevId.sql ========== */
+/* ========== 56 / 070_alter_picking_clear_u_prevId.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 070_alter_picking_clear_u_prevId.sql
@@ -7145,7 +7244,946 @@ GO
 GO
 
 
-/* ========== 55 / 074_alter_sp_HCA_prev_entrada_obter_consumo.sql ========== */
+/* ========== 57 / 073_fix_prev_entrada_empty_string.sql ========== */
+-- =============================================================================
+-- Liliana & Seródio — Portal Logístico
+-- Script: 073_fix_prev_entrada_empty_string.sql
+-- Ambiente: UAT primeiro; Produção só no GO formal
+-- Pré-requisito: BI2.u_prevId varchar(50) NOT NULL DEFAULT '' (Framework / alter coluna)
+--                068 índice IX_bi2_u_prevId; tabelas previsão 062+064
+-- NÃO executar contra a BD a partir deste agente — deploy manual.
+-- =============================================================================
+-- PR2-A fix — u_prevId NEVER NULL: '' = sem associação.
+--   Substitui clears/assigns NULL das SPs 068/069/070 por string vazia.
+--   Lógica de negócio inalterada; só semântica NULL → ''.
+--   Fontes: 068 (SP only), 069, 070 (ambas as SPs). Scripts históricos 068–070 mantidos.
+-- =============================================================================
+
+SET NOCOUNT ON;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_HCA_atualizar_qtd_autorizada
+    @bistamp                   varchar(25),
+    @quantidade_autorizada     numeric(16, 2),
+    @usrlogin                  varchar(100),
+    @valor_anterior_esperado   numeric(16, 2) = NULL,
+    @permitir_acima_stock      bit = 0,  -- legado API; ignorado (sem bypass da previsão)
+    @usrinis                   varchar(3) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @bistamp IS NULL OR LTRIM(RTRIM(@bistamp)) = ''
+    BEGIN
+        RAISERROR(N'bistamp obrigatório.', 16, 1);
+        RETURN;
+    END;
+
+    IF @quantidade_autorizada IS NULL OR @quantidade_autorizada < 0
+    BEGIN
+        RAISERROR(N'quantidade_autorizada inválida.', 16, 1);
+        RETURN;
+    END;
+
+    IF @usrlogin IS NULL OR LTRIM(RTRIM(@usrlogin)) = ''
+    BEGIN
+        RAISERROR(N'usrlogin obrigatório.', 16, 1);
+        RETURN;
+    END;
+
+    -- Evitar warning de parâmetro não usado (compatibilidade de assinatura).
+    SET @permitir_acima_stock = ISNULL(@permitir_acima_stock, 0);
+
+    DECLARE
+        @ref varchar(18),
+        @bostamp varchar(25),
+        @u_qtdaut_atual numeric(16, 2),
+        @u_qtdautur_atual varchar(100),
+        @qtt_atual numeric(16, 2),
+        @edebito_atual numeric(16, 2),
+        @primeira_autorizacao bit,
+        @pickstat int,
+        @prevIdAtual varchar(50),
+        @prevIdGuid uniqueidentifier,
+        @prevIdStr varchar(50),
+        @fechada bit,
+        @previsto numeric(16, 2),
+        @alocado_outros numeric(16, 2),
+        @disponivel numeric(16, 2),
+        @tem_linha_prev bit,
+        @agora datetime = GETDATE(),
+        @usrdata datetime,
+        @usrhora varchar(8),
+        @usrinis_n varchar(3),
+        @msg nvarchar(400);
+
+    SET @usrdata = CAST(@agora AS date);
+    SET @usrhora = CONVERT(varchar(8), @agora, 108);
+    SET @usrinis_n = LEFT(LTRIM(RTRIM(ISNULL(NULLIF(@usrinis, ''), @usrlogin))), 3);
+
+    BEGIN TRAN;
+
+    SELECT
+        @ref = LTRIM(RTRIM(bi.ref)),
+        @bostamp = bi.bostamp,
+        @u_qtdaut_atual = ISNULL(bi2.u_qtdaut, 0),
+        @u_qtdautur_atual = ISNULL(bi2.u_qtdautur, ''),
+        @qtt_atual = bi.qtt,
+        @edebito_atual = bi.edebito,
+        @prevIdAtual = LTRIM(RTRIM(ISNULL(bi2.u_prevId, ''))),
+        @pickstat = CAST(ISNULL(bo3.u_pickstat, 0) AS int)
+    FROM dbo.bi bi WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN dbo.bo bo WITH (UPDLOCK, ROWLOCK)
+        ON bo.bostamp COLLATE DATABASE_DEFAULT = bi.bostamp COLLATE DATABASE_DEFAULT
+    LEFT JOIN dbo.bi2 bi2 WITH (UPDLOCK, ROWLOCK)
+        ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+    LEFT JOIN dbo.bo3 bo3 WITH (UPDLOCK, ROWLOCK)
+        ON bo3.bo3stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
+    WHERE bi.bistamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT
+      AND bo.ndos = 1
+      AND ISNULL(bo.fechada, 0) = 0;
+
+    IF @ref IS NULL
+    BEGIN
+        ROLLBACK;
+        RAISERROR(N'Linha não encontrada ou documento fechado/série inválida.', 16, 1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.bi2 WITH (UPDLOCK, ROWLOCK)
+        WHERE bi2stamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT
+    )
+    BEGIN
+        INSERT INTO dbo.bi2 (bi2stamp)
+        VALUES (@bistamp);
+        SET @prevIdAtual = '';
+        SET @u_qtdaut_atual = 0;
+        SET @u_qtdautur_atual = '';
+    END;
+
+    IF @valor_anterior_esperado IS NOT NULL AND @u_qtdaut_atual <> @valor_anterior_esperado
+    BEGIN
+        ROLLBACK;
+        RAISERROR(N'Conflito de concorrência na quantidade autorizada.', 16, 1);
+        RETURN;
+    END;
+
+    IF ISNULL(@pickstat, 0) >= 1
+    BEGIN
+        ROLLBACK;
+        RAISERROR(N'Quantidade autorizada congelada (pronta para picking).', 16, 1);
+        RETURN;
+    END;
+
+    SET @primeira_autorizacao = CASE
+        WHEN LTRIM(RTRIM(ISNULL(@u_qtdautur_atual, ''))) = '' THEN 1
+        ELSE 0
+    END;
+
+    /* ---------- Zero: libertar consumo; limpar u_prevId ---------- */
+    IF @quantidade_autorizada = 0
+    BEGIN
+        IF @primeira_autorizacao = 1
+        BEGIN
+            UPDATE dbo.bi2
+            SET u_qttorig = CASE
+                WHEN ISNULL(u_qttorig, 0) = 0 THEN @qtt_atual
+                ELSE u_qttorig
+            END
+            WHERE bi2stamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+
+            UPDATE dbo.bi
+            SET
+                qtt = 0,
+                ettdeb = 0,
+                usrinis = @usrinis_n,
+                usrdata = @usrdata,
+                usrhora = @usrhora
+            WHERE bistamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+
+            UPDATE dbo.bo
+            SET
+                usrinis = @usrinis_n,
+                usrdata = @usrdata,
+                usrhora = @usrhora
+            WHERE bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+        END;
+
+        UPDATE dbo.bi2
+        SET
+            u_qtdaut = 0,
+            u_qtdautur = LEFT(LTRIM(RTRIM(@usrlogin)), 100),
+            u_qtdautdt = @agora,
+            u_prevId = ''
+        WHERE bi2stamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+
+        COMMIT;
+
+        SELECT
+            bi.bistamp,
+            bi.bostamp,
+            LTRIM(RTRIM(bi.ref)) AS ref,
+            ISNULL(bi2.u_qtdaut, 0) AS quantidade_autorizada,
+            LTRIM(RTRIM(ISNULL(bi2.u_qtdautur, ''))) AS quantidade_autorizada_por,
+            bi2.u_qtdautdt AS quantidade_autorizada_em,
+            bi.qtt AS quantidade_atual,
+            ISNULL(bi2.u_qttorig, 0) AS quantidade_original_campo,
+            ISNULL(NULLIF(bi2.u_qttorig, 0), bi.qtt) AS quantidade_original_considerada,
+            bi.qtt2 AS quantidade_fornecida,
+            CAST(0 AS numeric(16, 2)) AS stock_disponivel,
+            CAST(0 AS numeric(16, 2)) AS soma_autorizada_artigo,
+            @primeira_autorizacao AS primeira_autorizacao,
+            CAST('' AS varchar(50)) AS u_prevId,
+            CAST(0 AS numeric(16, 2)) AS previsto,
+            CAST(0 AS numeric(16, 2)) AS alocado,
+            CAST(0 AS numeric(16, 2)) AS disponivel_previsao
+        FROM dbo.bi bi WITH (NOLOCK)
+        LEFT JOIN dbo.bi2 bi2 WITH (NOLOCK)
+            ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+        WHERE bi.bistamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+
+        RETURN;
+    END;
+
+    /* ---------- qty > 0: associar / manter previsão e validar capacidade ---------- */
+    SET @prevIdGuid = NULL;
+    SET @prevIdStr = NULL;
+    SET @fechada = NULL;
+
+    IF @prevIdAtual <> ''
+    BEGIN
+        SET @prevIdGuid = TRY_CONVERT(uniqueidentifier, @prevIdAtual);
+        IF @prevIdGuid IS NULL
+        BEGIN
+            ROLLBACK;
+            RAISERROR(N'A autorização está associada a uma previsão fechada.', 16, 1);
+            RETURN;
+        END;
+
+        SELECT
+            @fechada = CAST(ISNULL(p.Fechada, 0) AS bit),
+            @prevIdStr = CONVERT(varchar(36), p.Id)
+        FROM dbo.u_HcaPrevEntrada p WITH (UPDLOCK, ROWLOCK)
+        WHERE p.Id = @prevIdGuid;
+
+        IF @prevIdStr IS NULL
+        BEGIN
+            ROLLBACK;
+            RAISERROR(N'A autorização está associada a uma previsão fechada.', 16, 1);
+            RETURN;
+        END;
+
+        IF ISNULL(@fechada, 1) = 1
+        BEGIN
+            ROLLBACK;
+            RAISERROR(N'A autorização está associada a uma previsão fechada.', 16, 1);
+            RETURN;
+        END;
+    END
+    ELSE
+    BEGIN
+        SELECT TOP (1)
+            @prevIdGuid = p.Id,
+            @prevIdStr = CONVERT(varchar(36), p.Id)
+        FROM dbo.u_HcaPrevEntrada p WITH (UPDLOCK, ROWLOCK)
+        WHERE ISNULL(p.Fechada, 0) = 0
+        ORDER BY p.DataInicio ASC, p.DataFim ASC;
+
+        IF @prevIdGuid IS NULL
+        BEGIN
+            ROLLBACK;
+            RAISERROR(N'Não existe uma previsão de entrada aberta.', 16, 1);
+            RETURN;
+        END;
+    END;
+
+    SET @tem_linha_prev = 0;
+    SET @previsto = NULL;
+
+    SELECT
+        @tem_linha_prev = 1,
+        @previsto = ISNULL(l.QuantidadePrevista, 0)
+    FROM dbo.u_HcaPrevEntradaLin l WITH (UPDLOCK, ROWLOCK)
+    WHERE l.PrevisaoId = @prevIdGuid
+      AND LTRIM(RTRIM(l.Ref)) COLLATE DATABASE_DEFAULT = @ref COLLATE DATABASE_DEFAULT;
+
+    IF ISNULL(@tem_linha_prev, 0) = 0
+    BEGIN
+        ROLLBACK;
+        SET @msg = N'A referência ' + @ref + N' não tem quantidade prevista registada.';
+        RAISERROR(@msg, 16, 1);
+        RETURN;
+    END;
+
+    SET @previsto = ISNULL(@previsto, 0);
+
+    -- Alocado noutras linhas do mesmo ciclo+ref (sem filtro ndos/fechada).
+    SELECT @alocado_outros = ISNULL(SUM(ISNULL(bi2.u_qtdaut, 0)), 0)
+    FROM dbo.bi2 bi2 WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN dbo.bi bi WITH (UPDLOCK, ROWLOCK)
+        ON bi.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT
+    WHERE LTRIM(RTRIM(ISNULL(bi2.u_prevId, ''))) COLLATE DATABASE_DEFAULT
+          = @prevIdStr COLLATE DATABASE_DEFAULT
+      AND LTRIM(RTRIM(bi.ref)) COLLATE DATABASE_DEFAULT = @ref COLLATE DATABASE_DEFAULT
+      AND bi.bistamp COLLATE DATABASE_DEFAULT <> @bistamp COLLATE DATABASE_DEFAULT;
+
+    SET @alocado_outros = ISNULL(@alocado_outros, 0);
+    SET @disponivel = @previsto - @alocado_outros;
+
+    IF (@alocado_outros + @quantidade_autorizada) > @previsto
+    BEGIN
+        ROLLBACK;
+        SET @msg = N'Quantidade prevista insuficiente. Disponível: '
+            + CONVERT(nvarchar(40), CAST(@disponivel AS numeric(16, 2))) + N'.';
+        RAISERROR(@msg, 16, 1);
+        RETURN;
+    END;
+
+    IF @primeira_autorizacao = 1
+    BEGIN
+        UPDATE dbo.bi2
+        SET u_qttorig = CASE
+            WHEN ISNULL(u_qttorig, 0) = 0 THEN @qtt_atual
+            ELSE u_qttorig
+        END
+        WHERE bi2stamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+
+        UPDATE dbo.bi
+        SET
+            qtt = @quantidade_autorizada,
+            ettdeb = ROUND(@quantidade_autorizada * @edebito_atual, 2),
+            usrinis = @usrinis_n,
+            usrdata = @usrdata,
+            usrhora = @usrhora
+        WHERE bistamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+
+        UPDATE dbo.bo
+        SET
+            usrinis = @usrinis_n,
+            usrdata = @usrdata,
+            usrhora = @usrhora
+        WHERE bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+    END;
+
+    UPDATE dbo.bi2
+    SET
+        u_qtdaut = @quantidade_autorizada,
+        u_qtdautur = LEFT(LTRIM(RTRIM(@usrlogin)), 100),
+        u_qtdautdt = @agora,
+        u_prevId = @prevIdStr
+    WHERE bi2stamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+
+    COMMIT;
+
+    SELECT
+        bi.bistamp,
+        bi.bostamp,
+        LTRIM(RTRIM(bi.ref)) AS ref,
+        ISNULL(bi2.u_qtdaut, 0) AS quantidade_autorizada,
+        LTRIM(RTRIM(ISNULL(bi2.u_qtdautur, ''))) AS quantidade_autorizada_por,
+        bi2.u_qtdautdt AS quantidade_autorizada_em,
+        bi.qtt AS quantidade_atual,
+        ISNULL(bi2.u_qttorig, 0) AS quantidade_original_campo,
+        ISNULL(NULLIF(bi2.u_qttorig, 0), bi.qtt) AS quantidade_original_considerada,
+        bi.qtt2 AS quantidade_fornecida,
+        -- legado: coluna mantida; valor = disponível da previsão após esta linha
+        (@previsto - (@alocado_outros + @quantidade_autorizada)) AS stock_disponivel,
+        (@alocado_outros + @quantidade_autorizada) AS soma_autorizada_artigo,
+        @primeira_autorizacao AS primeira_autorizacao,
+        LTRIM(RTRIM(ISNULL(bi2.u_prevId, ''))) AS u_prevId,
+        @previsto AS previsto,
+        (@alocado_outros + @quantidade_autorizada) AS alocado,
+        (@previsto - (@alocado_outros + @quantidade_autorizada)) AS disponivel_previsao
+    FROM dbo.bi bi WITH (NOLOCK)
+    LEFT JOIN dbo.bi2 bi2 WITH (NOLOCK)
+        ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+    WHERE bi.bistamp COLLATE DATABASE_DEFAULT = @bistamp COLLATE DATABASE_DEFAULT;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_HCA_alocacao_proporcional
+    @ref          varchar(18),
+    @usrlogin     varchar(100),
+    @simular      bit = 0,
+    @disponivel   numeric(16, 2) = NULL,  -- legado; ignorado (fonte = previsão)
+    @cor          varchar(50) = NULL,
+    @filtrar_cor  bit = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @ref IS NULL OR LTRIM(RTRIM(@ref)) = ''
+    BEGIN
+        RAISERROR(N'ref obrigatória.', 16, 1);
+        RETURN;
+    END;
+
+    IF @simular = 0 AND (@usrlogin IS NULL OR LTRIM(RTRIM(@usrlogin)) = '')
+    BEGIN
+        RAISERROR(N'usrlogin obrigatório para gravar.', 16, 1);
+        RETURN;
+    END;
+
+    -- Compatibilidade de assinatura: não usar @disponivel como teto.
+    SET @disponivel = NULL;
+
+    DECLARE
+        @ref_n varchar(18) = LTRIM(RTRIM(@ref)),
+        @cor_n varchar(50) = LTRIM(RTRIM(ISNULL(@cor, ''))),
+        @prevIdGuid uniqueidentifier,
+        @prevIdStr varchar(50),
+        @previsto numeric(16, 2),
+        @alocado_outros numeric(16, 2),
+        @disponivel_usado numeric(16, 2),
+        @tem_linha_prev bit,
+        @R numeric(16, 4),
+        @sobra int,
+        @agora datetime = GETDATE(),
+        @msg nvarchar(400);
+
+    IF OBJECT_ID('tempdb..#linhas') IS NOT NULL
+        DROP TABLE #linhas;
+
+    CREATE TABLE #linhas (
+        bistamp varchar(25) COLLATE DATABASE_DEFAULT NOT NULL PRIMARY KEY,
+        bostamp varchar(25) COLLATE DATABASE_DEFAULT NOT NULL,
+        dataobra datetime NULL,
+        obrano int NULL,
+        restante numeric(16, 4) NOT NULL,
+        bruto numeric(16, 8) NOT NULL DEFAULT 0,
+        auth_floor int NOT NULL DEFAULT 0,
+        frac numeric(16, 8) NOT NULL DEFAULT 0,
+        auth_final int NOT NULL DEFAULT 0,
+        rn int NULL,
+        primeira bit NOT NULL DEFAULT 0
+    );
+
+    BEGIN TRAN;
+
+    SELECT TOP (1)
+        @prevIdGuid = p.Id,
+        @prevIdStr = CONVERT(varchar(36), p.Id)
+    FROM dbo.u_HcaPrevEntrada p WITH (UPDLOCK, ROWLOCK)
+    WHERE ISNULL(p.Fechada, 0) = 0
+    ORDER BY p.DataInicio ASC, p.DataFim ASC;
+
+    IF @prevIdGuid IS NULL
+    BEGIN
+        ROLLBACK;
+        RAISERROR(N'Não existe uma previsão de entrada aberta.', 16, 1);
+        RETURN;
+    END;
+
+    SET @tem_linha_prev = 0;
+    SET @previsto = NULL;
+
+    SELECT
+        @tem_linha_prev = 1,
+        @previsto = ISNULL(l.QuantidadePrevista, 0)
+    FROM dbo.u_HcaPrevEntradaLin l WITH (UPDLOCK, ROWLOCK)
+    WHERE l.PrevisaoId = @prevIdGuid
+      AND LTRIM(RTRIM(l.Ref)) COLLATE DATABASE_DEFAULT = @ref_n COLLATE DATABASE_DEFAULT;
+
+    IF ISNULL(@tem_linha_prev, 0) = 0
+    BEGIN
+        ROLLBACK;
+        SET @msg = N'A referência ' + @ref_n + N' não tem quantidade prevista registada.';
+        RAISERROR(@msg, 16, 1);
+        RETURN;
+    END;
+
+    SET @previsto = ISNULL(@previsto, 0);
+
+    INSERT INTO #linhas (bistamp, bostamp, dataobra, obrano, restante, primeira)
+    SELECT
+        bi.bistamp,
+        bi.bostamp,
+        bo.dataobra,
+        bo.obrano,
+        (ISNULL(NULLIF(bi2.u_qttorig, 0), bi.qtt) - bi.qtt2),
+        CASE WHEN LTRIM(RTRIM(ISNULL(bi2.u_qtdautur, ''))) = '' THEN 1 ELSE 0 END
+    FROM dbo.bi bi WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN dbo.bo bo WITH (UPDLOCK, ROWLOCK)
+        ON bo.bostamp COLLATE DATABASE_DEFAULT = bi.bostamp COLLATE DATABASE_DEFAULT
+    LEFT JOIN dbo.bi2 bi2 WITH (UPDLOCK, ROWLOCK)
+        ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+    LEFT JOIN dbo.bo3 bo3 WITH (NOLOCK)
+        ON bo3.bo3stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
+    WHERE LTRIM(RTRIM(bi.ref)) COLLATE DATABASE_DEFAULT
+          = @ref_n COLLATE DATABASE_DEFAULT
+      AND bo.ndos = 1
+      AND ISNULL(bo.fechada, 0) = 0
+      AND ISNULL(bo3.u_pickrdy, 0) = 0
+      AND ISNULL(bo3.u_pickstat, 0) = 0
+      AND (ISNULL(NULLIF(bi2.u_qttorig, 0), bi.qtt) - bi.qtt2) > 0
+      AND (
+            @filtrar_cor = 0
+         OR LTRIM(RTRIM(COALESCE(
+                NULLIF(LTRIM(RTRIM(ISNULL(bi.cor, ''))), ''),
+                NULLIF(LTRIM(RTRIM(ISNULL(bi.u_cor, ''))), ''),
+                ''
+            ))) COLLATE DATABASE_DEFAULT
+            = @cor_n COLLATE DATABASE_DEFAULT
+          );
+
+    -- Anomalia: linha do conjunto com u_prevId de previsão fechada.
+    IF EXISTS (
+        SELECT 1
+        FROM #linhas l
+        INNER JOIN dbo.bi2 bi2 WITH (UPDLOCK, ROWLOCK)
+            ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = l.bistamp COLLATE DATABASE_DEFAULT
+        INNER JOIN dbo.u_HcaPrevEntrada p WITH (UPDLOCK, ROWLOCK)
+            ON p.Id = TRY_CONVERT(uniqueidentifier, LTRIM(RTRIM(ISNULL(bi2.u_prevId, ''))))
+        WHERE LTRIM(RTRIM(ISNULL(bi2.u_prevId, ''))) <> ''
+          AND ISNULL(p.Fechada, 0) = 1
+          AND ISNULL(bi2.u_qtdaut, 0) > 0
+    )
+    BEGIN
+        ROLLBACK;
+        RAISERROR(N'A autorização está associada a uma previsão fechada.', 16, 1);
+        RETURN;
+    END;
+
+    -- Capacidade = Previsto − Alocado fora do conjunto a redistribuir (qualquer ndos).
+    SELECT @alocado_outros = ISNULL(SUM(ISNULL(bi2.u_qtdaut, 0)), 0)
+    FROM dbo.bi2 bi2 WITH (UPDLOCK, ROWLOCK)
+    INNER JOIN dbo.bi bi WITH (UPDLOCK, ROWLOCK)
+        ON bi.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT
+    WHERE LTRIM(RTRIM(ISNULL(bi2.u_prevId, ''))) COLLATE DATABASE_DEFAULT
+          = @prevIdStr COLLATE DATABASE_DEFAULT
+      AND LTRIM(RTRIM(bi.ref)) COLLATE DATABASE_DEFAULT = @ref_n COLLATE DATABASE_DEFAULT
+      AND NOT EXISTS (
+            SELECT 1 FROM #linhas l
+            WHERE l.bistamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+        );
+
+    SET @alocado_outros = ISNULL(@alocado_outros, 0);
+    SET @disponivel_usado = @previsto - @alocado_outros;
+    IF @disponivel_usado < 0
+        SET @disponivel_usado = 0;
+
+    SELECT @R = ISNULL(SUM(restante), 0) FROM #linhas;
+
+    IF @R = 0 OR @disponivel_usado <= 0
+    BEGIN
+        UPDATE #linhas SET auth_final = 0, bruto = 0, auth_floor = 0, frac = 0;
+    END
+    ELSE
+    BEGIN
+        UPDATE #linhas
+        SET
+            bruto = CAST(@disponivel_usado AS numeric(16, 8)) * (restante / @R),
+            auth_floor = FLOOR(CAST(@disponivel_usado AS numeric(16, 8)) * (restante / @R)),
+            frac = (CAST(@disponivel_usado AS numeric(16, 8)) * (restante / @R))
+                   - FLOOR(CAST(@disponivel_usado AS numeric(16, 8)) * (restante / @R));
+
+        UPDATE #linhas SET auth_final = auth_floor;
+
+        SELECT @sobra = CAST(FLOOR(@disponivel_usado) AS int) - ISNULL(SUM(auth_floor), 0)
+        FROM #linhas;
+
+        ;WITH ranked AS (
+            SELECT
+                bistamp,
+                ROW_NUMBER() OVER (
+                    ORDER BY frac DESC, dataobra ASC, obrano ASC, bistamp ASC
+                ) AS rn
+            FROM #linhas
+        )
+        UPDATE l
+        SET
+            l.rn = r.rn,
+            l.auth_final = CASE
+                WHEN r.rn <= @sobra THEN l.auth_floor + 1
+                ELSE l.auth_floor
+            END
+        FROM #linhas l
+        INNER JOIN ranked r ON r.bistamp = l.bistamp;
+
+        UPDATE #linhas
+        SET auth_final = CASE
+            WHEN auth_final > FLOOR(restante) THEN FLOOR(restante)
+            ELSE auth_final
+        END;
+    END;
+
+    IF @simular = 0
+    BEGIN
+        INSERT INTO dbo.bi2 (bi2stamp)
+        SELECT l.bistamp
+        FROM #linhas l
+        WHERE NOT EXISTS (
+            SELECT 1 FROM dbo.bi2 bi2
+            WHERE bi2.bi2stamp COLLATE DATABASE_DEFAULT = l.bistamp COLLATE DATABASE_DEFAULT
+        );
+
+        UPDATE bi2
+        SET u_qttorig = bi.qtt
+        FROM dbo.bi2 bi2
+        INNER JOIN #linhas l
+            ON l.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT
+        INNER JOIN dbo.bi bi
+            ON bi.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT
+        WHERE l.primeira = 1
+          AND ISNULL(bi2.u_qttorig, 0) = 0;
+
+        UPDATE bi
+        SET
+            qtt = l.auth_final,
+            ettdeb = ROUND(l.auth_final * bi.edebito, 2),
+            usrinis = LEFT(LTRIM(RTRIM(@usrlogin)), 3),
+            usrdata = CAST(@agora AS date),
+            usrhora = CONVERT(varchar(8), @agora, 108)
+        FROM dbo.bi bi
+        INNER JOIN #linhas l
+            ON l.bistamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+        WHERE l.primeira = 1;
+
+        UPDATE bi2
+        SET
+            u_qtdaut = l.auth_final,
+            u_qtdautur = LEFT(LTRIM(RTRIM(@usrlogin)), 100),
+            u_qtdautdt = @agora,
+            u_prevId = CASE
+                WHEN l.auth_final > 0 THEN @prevIdStr
+                ELSE ''
+            END
+        FROM dbo.bi2 bi2
+        INNER JOIN #linhas l
+            ON l.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT;
+    END;
+
+    COMMIT;
+
+    SELECT
+        @ref_n AS ref,
+        CAST(0 AS numeric(16, 2)) AS stock_disponivel,
+        @disponivel_usado AS disponivel_usado,
+        @simular AS simular,
+        ISNULL(SUM(auth_final), 0) AS soma_proposta,
+        @previsto AS previsto,
+        @alocado_outros AS alocado_outros,
+        @prevIdStr AS u_prevId
+    FROM #linhas;
+
+    SELECT
+        l.bistamp,
+        l.bostamp,
+        l.obrano,
+        l.dataobra,
+        l.restante AS quantidade_por_satisfazer,
+        l.bruto,
+        l.auth_final AS quantidade_proposta
+    FROM #linhas l
+    ORDER BY l.dataobra ASC, l.obrano ASC, l.bistamp ASC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_HCA_picking_cancel
+    @bostamp  varchar(25),
+    @usrlogin varchar(100),
+    @usrinis  varchar(3) = NULL,
+    @motivo   varchar(254)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @bostamp IS NULL OR LTRIM(RTRIM(@bostamp)) = ''
+    BEGIN RAISERROR(N'bostamp obrigatório.', 16, 1); RETURN; END;
+    IF @usrlogin IS NULL OR LTRIM(RTRIM(@usrlogin)) = ''
+    BEGIN RAISERROR(N'usrlogin obrigatório.', 16, 1); RETURN; END;
+    IF @motivo IS NULL OR LTRIM(RTRIM(@motivo)) = ''
+    BEGIN RAISERROR(N'Motivo de cancelamento obrigatório.', 16, 1); RETURN; END;
+
+    DECLARE @agora datetime = GETDATE(), @stat int, @usrinis_n varchar(3),
+            @usrdata datetime, @usrhora varchar(8),
+            @motivo_n varchar(254);
+    SET @usrinis_n = LEFT(LTRIM(RTRIM(ISNULL(NULLIF(@usrinis, ''), @usrlogin))), 3);
+    SET @usrdata = CAST(@agora AS date);
+    SET @usrhora = CONVERT(varchar(8), @agora, 108);
+    SET @motivo_n = LEFT(LTRIM(RTRIM(@motivo)), 254);
+
+    BEGIN TRAN;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.bo bo WITH (UPDLOCK, ROWLOCK)
+        WHERE bo.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+          AND bo.ndos = 1 AND ISNULL(bo.fechada, 0) = 0)
+    BEGIN ROLLBACK; RAISERROR(N'Encomenda não encontrada ou documento fechado/série inválida.', 16, 1); RETURN; END;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.bo3 WITH (UPDLOCK, ROWLOCK)
+                   WHERE bo3stamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT)
+        INSERT INTO dbo.bo3 (bo3stamp) VALUES (@bostamp);
+
+    SELECT @stat = CAST(ISNULL(u_pickstat, 0) AS int)
+    FROM dbo.bo3 WITH (UPDLOCK, ROWLOCK)
+    WHERE bo3stamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+
+    IF @stat <> 1
+    BEGIN ROLLBACK; RAISERROR(N'Transição inválida: Cancelar Picking só a partir de Preparado (u_pickstat=1).', 16, 1); RETURN; END;
+
+    INSERT INTO dbo.bi2 (bi2stamp)
+    SELECT bi.bistamp FROM dbo.bi bi
+    WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+      AND NOT EXISTS (SELECT 1 FROM dbo.bi2 bi2
+                      WHERE bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT);
+
+    UPDATE bi SET qtt = bi2.u_qttorig, ettdeb = ROUND(bi2.u_qttorig * bi.edebito, 2),
+                  usrinis = @usrinis_n, usrdata = @usrdata, usrhora = @usrhora
+    FROM dbo.bi bi
+    INNER JOIN dbo.bi2 bi2 ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+    WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+      AND ISNULL(bi2.u_qttorig, 0) > 0;
+
+    UPDATE bi2
+    SET
+        u_qtdaut = 0,
+        u_qtdautur = '',
+        u_qtdautdt = CAST('19000101' AS datetime),
+        u_prevId = ''
+    FROM dbo.bi2 bi2
+    INNER JOIN dbo.bi bi ON bi.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT
+    WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+
+    UPDATE dbo.bo3
+    SET u_pickrdy = 0, u_pickstat = 0,
+        u_pickrdr = LEFT(LTRIM(RTRIM(@usrlogin)), 100), u_pickrdt = @agora,
+        u_pickcobs = @motivo_n
+    WHERE bo3stamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+
+    UPDATE dbo.bo SET usrinis = @usrinis_n, usrdata = @usrdata, usrhora = @usrhora
+    WHERE bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+
+    COMMIT;
+
+    SELECT bo.bostamp,
+           CAST(ISNULL(bo3.u_pickrdy, 0) AS bit) AS pronta_picking,
+           CAST(ISNULL(bo3.u_pickstat, 0) AS int) AS pick_status,
+           LTRIM(RTRIM(ISNULL(bo3.u_pickrdr, ''))) AS pronta_picking_por,
+           CASE WHEN bo3.u_pickrdt IS NULL OR YEAR(bo3.u_pickrdt) < 1950 THEN CAST(NULL AS datetime) ELSE bo3.u_pickrdt END AS pronta_picking_em
+    FROM dbo.bo bo WITH (NOLOCK)
+    LEFT JOIN dbo.bo3 bo3 WITH (NOLOCK) ON bo3.bo3stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
+    WHERE bo.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_HCA_marcar_pronta_picking
+    @bostamp                varchar(25),
+    @pronta                 bit,
+    @usrlogin               varchar(100),
+    @usrinis                varchar(3) = NULL,
+    @confirmar_linhas_zero  bit = 0,
+    @motivo                 varchar(254) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @bostamp IS NULL OR LTRIM(RTRIM(@bostamp)) = ''
+    BEGIN
+        RAISERROR(N'bostamp obrigatório.', 16, 1);
+        RETURN;
+    END;
+
+    IF @usrlogin IS NULL OR LTRIM(RTRIM(@usrlogin)) = ''
+    BEGIN
+        RAISERROR(N'usrlogin obrigatório.', 16, 1);
+        RETURN;
+    END;
+
+    IF ISNULL(@pronta, 0) = 0 AND (@motivo IS NULL OR LTRIM(RTRIM(@motivo)) = '')
+    BEGIN
+        RAISERROR(N'Motivo de cancelamento obrigatório.', 16, 1);
+        RETURN;
+    END;
+
+    DECLARE
+        @agora datetime = GETDATE(),
+        @usrdata datetime,
+        @usrhora varchar(8),
+        @usrinis_n varchar(3),
+        @linhas_zero int = 0,
+        @stat_atual int,
+        @motivo_n varchar(254);
+
+    SET @usrdata = CAST(@agora AS date);
+    SET @usrhora = CONVERT(varchar(8), @agora, 108);
+    SET @usrinis_n = LEFT(LTRIM(RTRIM(ISNULL(NULLIF(@usrinis, ''), @usrlogin))), 3);
+    SET @motivo_n = LEFT(LTRIM(RTRIM(ISNULL(@motivo, ''))), 254);
+
+    BEGIN TRAN;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM dbo.bo bo WITH (UPDLOCK, ROWLOCK)
+        WHERE bo.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+          AND bo.ndos = 1
+          AND ISNULL(bo.fechada, 0) = 0
+    )
+    BEGIN
+        ROLLBACK;
+        RAISERROR(N'Encomenda não encontrada ou documento fechado/série inválida.', 16, 1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dbo.bo3 WITH (UPDLOCK, ROWLOCK)
+        WHERE bo3stamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+    )
+        INSERT INTO dbo.bo3 (bo3stamp) VALUES (@bostamp);
+
+    SELECT @stat_atual = CAST(ISNULL(u_pickstat, 0) AS int)
+    FROM dbo.bo3 WITH (UPDLOCK, ROWLOCK)
+    WHERE bo3stamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+
+    IF ISNULL(@pronta, 0) = 1
+    BEGIN
+        IF @stat_atual NOT IN (0)
+        BEGIN
+            ROLLBACK;
+            RAISERROR(N'Transição inválida: só é possível marcar para picking a partir de Em Aberto (u_pickstat=0).', 16, 1);
+            RETURN;
+        END;
+
+        SELECT @linhas_zero = COUNT(1)
+        FROM dbo.bi bi WITH (UPDLOCK, ROWLOCK)
+        LEFT JOIN dbo.bi2 bi2 WITH (UPDLOCK, ROWLOCK)
+            ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+        WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+          AND ISNULL(bi2.u_qtdaut, 0) = 0
+          AND (ISNULL(NULLIF(bi2.u_qttorig, 0), bi.qtt) - bi.qtt2) > 0;
+
+        IF @linhas_zero > 0 AND ISNULL(@confirmar_linhas_zero, 0) = 0
+        BEGIN
+            ROLLBACK;
+            RAISERROR(
+                N'LINHAS_SEM_AUTORIZACAO: Existem linhas com quantidade autorizada a 0. Confirme para avançar.',
+                16,
+                1);
+            RETURN;
+        END;
+
+        IF @linhas_zero > 0 AND ISNULL(@confirmar_linhas_zero, 0) = 1
+        BEGIN
+            INSERT INTO dbo.bi2 (bi2stamp)
+            SELECT bi.bistamp
+            FROM dbo.bi bi
+            WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.bi2 bi2
+                  WHERE bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+              );
+
+            UPDATE bi2
+            SET
+                u_qttorig = CASE WHEN ISNULL(bi2.u_qttorig, 0) = 0 THEN bi.qtt ELSE bi2.u_qttorig END,
+                u_prcorig = CASE WHEN ISNULL(bi2.u_prcorig, 0) = 0 THEN bi.edebito ELSE bi2.u_prcorig END
+            FROM dbo.bi2 bi2
+            INNER JOIN dbo.bi bi
+                ON bi.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT
+            WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+              AND ISNULL(bi2.u_qtdaut, 0) = 0
+              AND (ISNULL(NULLIF(bi2.u_qttorig, 0), bi.qtt) - bi.qtt2) > 0;
+
+            UPDATE bi
+            SET
+                qtt = ISNULL(bi2.u_qtdaut, 0),
+                ettdeb = ROUND(ISNULL(bi2.u_qtdaut, 0) * bi.edebito, 2),
+                usrinis = @usrinis_n,
+                usrdata = @usrdata,
+                usrhora = @usrhora
+            FROM dbo.bi bi
+            INNER JOIN dbo.bi2 bi2
+                ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+            WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+              AND ISNULL(bi2.u_qtdaut, 0) = 0
+              AND (ISNULL(NULLIF(bi2.u_qttorig, 0), bi.qtt) - bi.qtt2) > 0;
+        END;
+    END
+    ELSE
+    BEGIN
+        IF @stat_atual NOT IN (1)
+        BEGIN
+            ROLLBACK;
+            RAISERROR(N'Transição inválida: só é possível cancelar picking a partir de Preparado (u_pickstat=1).', 16, 1);
+            RETURN;
+        END;
+
+        INSERT INTO dbo.bi2 (bi2stamp)
+        SELECT bi.bistamp
+        FROM dbo.bi bi
+        WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+          AND NOT EXISTS (
+              SELECT 1 FROM dbo.bi2 bi2
+              WHERE bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+          );
+
+        UPDATE bi
+        SET
+            qtt = bi2.u_qttorig,
+            ettdeb = ROUND(bi2.u_qttorig * bi.edebito, 2),
+            usrinis = @usrinis_n,
+            usrdata = @usrdata,
+            usrhora = @usrhora
+        FROM dbo.bi bi
+        INNER JOIN dbo.bi2 bi2
+            ON bi2.bi2stamp COLLATE DATABASE_DEFAULT = bi.bistamp COLLATE DATABASE_DEFAULT
+        WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT
+          AND ISNULL(bi2.u_qttorig, 0) > 0;
+
+        UPDATE bi2
+        SET
+            u_qtdaut = 0,
+            u_qtdautur = '',
+            u_qtdautdt = CAST('19000101' AS datetime),
+            u_prevId = ''
+        FROM dbo.bi2 bi2
+        INNER JOIN dbo.bi bi
+            ON bi.bistamp COLLATE DATABASE_DEFAULT = bi2.bi2stamp COLLATE DATABASE_DEFAULT
+        WHERE bi.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+    END;
+
+    UPDATE dbo.bo3
+    SET
+        u_pickrdy = ISNULL(@pronta, 0),
+        u_pickstat = CASE WHEN ISNULL(@pronta, 0) = 1 THEN 1 ELSE 0 END,
+        u_pickrdr = LEFT(LTRIM(RTRIM(@usrlogin)), 100),
+        u_pickrdt = @agora,
+        u_pickcobs = CASE WHEN ISNULL(@pronta, 0) = 1 THEN '' ELSE @motivo_n END
+    WHERE bo3stamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+
+    UPDATE dbo.bo
+    SET
+        usrinis = @usrinis_n,
+        usrdata = @usrdata,
+        usrhora = @usrhora
+    WHERE bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+
+    COMMIT;
+
+    SELECT
+        bo.bostamp,
+        CAST(ISNULL(bo3.u_pickrdy, 0) AS bit) AS pronta_picking,
+        LTRIM(RTRIM(ISNULL(bo3.u_pickrdr, ''))) AS pronta_picking_por,
+        CASE
+            WHEN bo3.u_pickrdt IS NULL OR YEAR(bo3.u_pickrdt) < 1950 THEN CAST(NULL AS datetime)
+            ELSE bo3.u_pickrdt
+        END AS pronta_picking_em,
+        CAST(ISNULL(bo3.u_pickstat, 0) AS int) AS pick_status
+    FROM dbo.bo bo WITH (NOLOCK)
+    LEFT JOIN dbo.bo3 bo3 WITH (NOLOCK)
+        ON bo3.bo3stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
+    WHERE bo.bostamp COLLATE DATABASE_DEFAULT = @bostamp COLLATE DATABASE_DEFAULT;
+END;
+GO
+GO
+
+
+/* ========== 58 / 074_alter_sp_HCA_prev_entrada_obter_consumo.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 074_alter_sp_HCA_prev_entrada_obter_consumo.sql
@@ -7207,7 +8245,7 @@ GO
 GO
 
 
-/* ========== 56 / 075_alter_u_HcaPrevEntradaLin_cor.sql ========== */
+/* ========== 59 / 075_alter_u_HcaPrevEntradaLin_cor.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 075_alter_u_HcaPrevEntradaLin_cor.sql
@@ -7257,7 +8295,7 @@ GO
 GO
 
 
-/* ========== 57 / 076_alter_sps_prev_entrada_ref_cor.sql ========== */
+/* ========== 60 / 076_alter_sps_prev_entrada_ref_cor.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 076_alter_sps_prev_entrada_ref_cor.sql
@@ -8114,7 +9152,7 @@ GO
 GO
 
 
-/* ========== 58 / 076b_grant_sp_HCA_prev_entrada_ref_cor.sql ========== */
+/* ========== 61 / 076b_grant_sp_HCA_prev_entrada_ref_cor.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 076b_grant_sp_HCA_prev_entrada_ref_cor.sql
@@ -8134,7 +9172,7 @@ GO
 GO
 
 
-/* ========== 59 / 079_alter_sp_HCA_prev_entrada_criar_seed_linhas.sql ========== */
+/* ========== 62 / 079_alter_sp_HCA_prev_entrada_criar_seed_linhas.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 079_alter_sp_HCA_prev_entrada_criar_seed_linhas.sql
@@ -8264,7 +9302,7 @@ GO
 GO
 
 
-/* ========== 60 / 080_create_sp_HCA_prev_entrada_fechar.sql ========== */
+/* ========== 63 / 080_create_sp_HCA_prev_entrada_fechar.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 080_create_sp_HCA_prev_entrada_fechar.sql
@@ -8333,7 +9371,7 @@ GO
 GO
 
 
-/* ========== 61 / 081_create_sp_HCA_prev_entrada_atualizar_linhas.sql ========== */
+/* ========== 64 / 081_create_sp_HCA_prev_entrada_atualizar_linhas.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 081_create_sp_HCA_prev_entrada_atualizar_linhas.sql
@@ -8447,7 +9485,7 @@ GO
 GO
 
 
-/* ========== 62 / 082_alter_sp_HCA_atualizar_qtd_autorizada_sem_teto_prev.sql ========== */
+/* ========== 65 / 082_alter_sp_HCA_atualizar_qtd_autorizada_sem_teto_prev.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 082_alter_sp_HCA_atualizar_qtd_autorizada_sem_teto_prev.sql
@@ -9296,7 +10334,7 @@ GO
 GO
 
 
-/* ========== 63 / 083_create_sp_HCA_fechar_expedicao_dossier.sql ========== */
+/* ========== 66 / 083_create_sp_HCA_fechar_expedicao_dossier.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 083_create_sp_HCA_fechar_expedicao_dossier.sql
@@ -9405,19 +10443,32 @@ GO
 GO
 
 
-/* ========== 64 / 083b_grant_sp_HCA_fecho_reabrir_expedicao.sql ========== */
+/* ========== 67 / 083b_grant_sp_HCA_fecho_reabrir_expedicao.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 083b_grant_sp_HCA_fecho_reabrir_expedicao.sql
 -- =============================================================================
-GRANT EXECUTE ON dbo.sp_HCA_fechar_expedicao_dossier TO [portal_app];
-GO
-GRANT EXECUTE ON dbo.sp_HCA_reabrir_expedicao_dossier TO [portal_app];
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'portal_app')
+    PRINT N'AVISO: user portal_app inexistente — saltar GRANTs 083b.';
+ELSE
+BEGIN
+    IF OBJECT_ID(N'dbo.sp_HCA_fechar_expedicao_dossier', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_fechar_expedicao_dossier TO [portal_app];
+    ELSE
+        PRINT N'AVISO: sp_HCA_fechar_expedicao_dossier inexistente.';
+
+    IF OBJECT_ID(N'dbo.sp_HCA_reabrir_expedicao_dossier', N'P') IS NOT NULL
+        GRANT EXECUTE ON dbo.sp_HCA_reabrir_expedicao_dossier TO [portal_app];
+    ELSE
+        PRINT N'AVISO: sp_HCA_reabrir_expedicao_dossier inexistente.';
+
+    PRINT N'OK: GRANTs 083b (quando objectos existem).';
+END
 GO
 GO
 
 
-/* ========== 65 / 084_create_sp_HCA_reabrir_expedicao_dossier.sql ========== */
+/* ========== 68 / 084_create_sp_HCA_reabrir_expedicao_dossier.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 084_create_sp_HCA_reabrir_expedicao_dossier.sql
@@ -9527,7 +10578,7 @@ GO
 GO
 
 
-/* ========== 66 / 085_alter_sp_HCA_prev_entrada_obter_perf.sql ========== */
+/* ========== 69 / 085_alter_sp_HCA_prev_entrada_obter_perf.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 085_alter_sp_HCA_prev_entrada_obter_perf.sql
@@ -9607,7 +10658,7 @@ GO
 GO
 
 
-/* ========== 67 / 086_alter_picking_cancel_block_when_qtt66.sql ========== */
+/* ========== 70 / 086_alter_picking_cancel_block_when_qtt66.sql ========== */
 -- =============================================================================
 -- Liliana & Seródio — Portal Logístico
 -- Script: 086_alter_picking_cancel_block_when_qtt66.sql

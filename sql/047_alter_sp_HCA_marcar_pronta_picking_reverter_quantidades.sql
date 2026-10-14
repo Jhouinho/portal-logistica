@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- Liliana & Serodio - Portal Logistico
 -- Script: 047_alter_sp_HCA_marcar_pronta_picking_reverter_quantidades.sql
 -- Ambiente: UAT / teste; Producao so no GO formal
