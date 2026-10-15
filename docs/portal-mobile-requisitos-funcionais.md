@@ -58,9 +58,10 @@ O portal funciona como ponto de entrada dos pedidos. O processamento comercial e
 - Os artigos são identificados através da leitura de QR Code ou da introdução manual da referência.
 - O QR Code contém apenas a referência do artigo.
 - Não existe pesquisa por descrição, referência através de pesquisa geral ou categorias.
-- Após identificar o artigo, o cliente escolhe a quantidade e, quando aplicável, a cor.
-- As cores são selecionadas a partir de uma lista geral.
-- Artigos sem cor podem ser adicionados sem seleção de cor.
+- Após identificar o artigo, o cliente escolhe a quantidade e, se pretender, a cor.
+- A cor é introduzida como **texto livre** (sem catálogo nem lista predefinida nesta fase).
+- Artigos sem cor podem ser adicionados deixando o campo de cor em branco.
+- O valor introduzido é persistido em `BI.u_cor` (limite alinhado ao campo PHC, varchar 100).
 - As quantidades são números inteiros positivos, sem quantidade mínima. O limite máximo fica por definir.
 - O portal apresenta um aviso de disponibilidade limitada quando aplicável, sem revelar a quantidade exata em stock.
 - A disponibilidade limitada não impede a submissão do pedido.

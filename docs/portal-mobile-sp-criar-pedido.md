@@ -15,7 +15,7 @@
 | Parâmetro | Tipo | Notas |
 | --- | --- | --- |
 | `@no`, `@estab` | numeric | Cliente PHC |
-| `@Linhas` | `HCA_PedidoMobileLinhaType` | `linha_ord`, `ref`, `qtt` (>0), `cor` (→ `BI.u_cor`; default `''`) — ver `093_alter_sp_HCA_criar_pedido_mobile_cor.sql` |
+| `@Linhas` | `HCA_PedidoMobileLinhaType` | `linha_ord`, `ref`, `qtt` (>0), `cor` texto livre → `BI.u_cor` (max 100; `''` permitido) — ver `093_alter_sp_HCA_criar_pedido_mobile_cor.sql`. Sem catálogo/`sfcor`. |
 | `@IdempotencyKey` | varchar(64) | Obrigatória; repetir a mesma key não cria 2.º documento |
 | `@usrinis` | varchar(3) | Default `MOB` |
 | `@armazem` | numeric | Default `1` (como ref Desktop) |

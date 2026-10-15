@@ -21,16 +21,17 @@ Percurso `/cliente/*` e `/api/v1/cliente/*` **não** devem usar estes endpoints;
 
 | Item | Resultado UAT |
 | --- | --- |
-| `BI.u_cor` | Existe |
-| Tabela `sfcor` | Existe (`cor`, `nome`, `marcada`); **0 linhas** |
-| Cores em uso em `BI.u_cor` | Ex.: Azul, Vermelha, Castanha, Branco, … |
+| `BI.u_cor` | Existe — **fonte de persistência** da cor no pedido mobile (`varchar(100)`) |
+| `BI.cor` | Nativo; **não** usado pelo Portal Mobile |
+| Tabela `sfcor` | Existe no PHC; **não** usada pelo Portal Mobile |
 | `ST` preços | `epv1`..`epv5`, `design`, `ref`, `stock` |
 | NIF duplicados | 14 (ver auditoria anterior); `999999990` ×4 |
 
-## Fonte de cores (decisão técnica)
+## Cor no Portal Mobile (decisão funcional)
 
-1. Preferir `dbo.sfcor` (`cor` / `nome`) quando houver linhas.
-2. Se `sfcor` estiver vazia: fallback `DISTINCT` de `BI.u_cor` não vazio (lista operacional observada), documentado como provisório até o negócio preencher `sfcor`.
+1. Seleção: **texto livre** na UI (sem catálogo, sem `sfcor`, sem lista de opções).
+2. Persistência e leitura: apenas `BI.u_cor`.
+3. Cor vazia: permitida (string vazia após trim), alinhada ao comportamento actual da SP.
 
 ## Scripts a criar / alterar
 

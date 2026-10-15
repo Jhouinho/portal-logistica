@@ -58,4 +58,24 @@ public class ClienteAuthRulesTests
         var fichas = new[] { new ClienteFicha(1911, 0, "X", "515240184", "912", null) };
         Assert.Equal(ClienteElegibilidade.Ok, ClienteElegibilidadeRules.Classify("515240184", fichas));
     }
+
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData("  Azul  ", "Azul")]
+    [InlineData("Amarelo-limão", "Amarelo-limão")]
+    public void Cor_normalize_trim_e_vazio(string? raw, string expected)
+    {
+        Assert.Equal(expected, ClienteCorLimits.Normalize(raw));
+    }
+
+    [Fact]
+    public void Cor_normalize_trunca_a_100()
+    {
+        var longCor = new string('A', 120);
+        var n = ClienteCorLimits.Normalize(longCor);
+        Assert.Equal(100, n.Length);
+        Assert.Equal(new string('A', 100), n);
+    }
 }

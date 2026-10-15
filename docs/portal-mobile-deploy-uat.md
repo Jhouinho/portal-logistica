@@ -22,4 +22,5 @@ Aplicar por ordem:
 
 - Autorização explícita de produção.
 - B05 número definitivo; B06–B08 Cópia de Dossier / estados 3–4.
-- Limiar de stock; preenchimento de `sfcor` (fallback actual = `BI.u_cor`).
+- Limiar de stock (`StockBaixoLimiar`).
+- Cor = texto livre → `BI.u_cor` (sem `sfcor`).

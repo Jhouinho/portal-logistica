@@ -32,7 +32,6 @@ export type ClienteArtigo = {
   design: string
   precoUnitario: number
   avisoStockBaixo: boolean
-  cores: { codigo: string; nome: string }[]
 }
 
 export type ClientePedidoLista = {

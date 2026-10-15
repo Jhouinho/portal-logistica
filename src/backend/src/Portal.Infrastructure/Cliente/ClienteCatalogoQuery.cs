@@ -17,39 +17,6 @@ public sealed class ClienteCatalogoQuery : IClienteCatalogoQuery
         _cliente = cliente.Value;
     }
 
-    public async Task<IReadOnlyList<ClienteCorItem>> ListarCoresAsync(CancellationToken cancellationToken)
-    {
-        await using var conn = new SqlConnection(_phc.ConnectionString);
-        var fromSfcor = (await conn.QueryAsync<ClienteCorItem>(new CommandDefinition(
-            """
-            SELECT LTRIM(RTRIM(cor)) AS Codigo,
-                   LTRIM(RTRIM(NULLIF(nome, ''))) AS Nome
-            FROM dbo.sfcor WITH (NOLOCK)
-            WHERE LTRIM(RTRIM(ISNULL(cor, ''))) <> ''
-            ORDER BY nome, cor
-            """,
-            cancellationToken: cancellationToken))).ToList();
-
-        if (fromSfcor.Count > 0)
-        {
-            return fromSfcor
-                .Select(c => new ClienteCorItem(c.Codigo, string.IsNullOrWhiteSpace(c.Nome) ? c.Codigo : c.Nome!))
-                .ToList();
-        }
-
-        // Fallback provisório (sfcor vazia em UAT): cores observadas em BI.u_cor
-        var fromBi = (await conn.QueryAsync<string>(new CommandDefinition(
-            """
-            SELECT DISTINCT LTRIM(RTRIM(u_cor)) AS cor
-            FROM dbo.bi WITH (NOLOCK)
-            WHERE LTRIM(RTRIM(ISNULL(u_cor, ''))) <> ''
-            ORDER BY 1
-            """,
-            cancellationToken: cancellationToken))).ToList();
-
-        return fromBi.Select(c => new ClienteCorItem(c, c)).ToList();
-    }
-
     public async Task<ClienteArtigoDto?> GetArtigoAsync(
         decimal clNo,
         decimal clEstab,
@@ -90,12 +57,11 @@ public sealed class ClienteCatalogoQuery : IClienteCatalogoQuery
         if (row is null || row.Inactivo)
             return null;
 
-        var cores = await ListarCoresAsync(cancellationToken);
         var aviso = false;
         if (_cliente.StockBaixoLimiar is { } limiar and > 0)
             aviso = row.Stock <= limiar;
 
-        return new ClienteArtigoDto(row.Ref, row.Design, row.PrecoUnitario, aviso, cores);
+        return new ClienteArtigoDto(row.Ref, row.Design, row.PrecoUnitario, aviso);
     }
 
     private sealed class ArtigoRow

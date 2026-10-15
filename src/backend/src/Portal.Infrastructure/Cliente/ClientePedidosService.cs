@@ -39,7 +39,7 @@ public sealed class ClientePedidosService : IClientePedidosService
                 l.LinhaOrd,
                 l.Ref.Trim(),
                 l.Qtt,
-                (l.Cor ?? string.Empty).Trim());
+                ClienteCorLimits.Normalize(l.Cor));
         }
 
         var p = new DynamicParameters();

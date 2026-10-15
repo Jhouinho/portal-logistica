@@ -159,13 +159,12 @@ Regras:
 - Não incluir imagens de artigos.
 - Não disponibilizar pesquisa por descrição ou categoria.
 - Consultar os preços segundo as condições comerciais do cliente no PHC.
-- Disponibilizar a lista geral de cores, quando aplicável.
-- Os artigos sem cor não apresentam seletor de cor.
-- Não limitar o seletor às cores configuradas individualmente no artigo.
+- A cor é um campo de **texto livre** (opcional); sem catálogo nem `sfcor`.
+- O valor é persistido e devolvido via `BI.u_cor` (máx. 100 caracteres).
 - Mostrar um aviso de disponibilidade limitada quando aplicável, sem revelar quantidades exatas de stock.
 - O aviso não impede a submissão do pedido.
 
-A fonte definitiva da lista geral de cores e o limiar do aviso devem ser confirmados através dos metadados e regras existentes no PHC. Não inventar valores nem assumir que uma tabela vazia é a fonte definitiva.
+O limiar do aviso de stock deve ser confirmado através dos metadados e regras existentes no PHC. Não inventar valores.
 
 ### 4.5. Carrinho
 
@@ -276,7 +275,7 @@ O plano deve abranger, de forma integrada:
 - Endpoints da API para primeiro acesso, login, recuperação, logout e sessão.
 - Proteção das APIs de clientes.
 - Interface mobile-first e respetivas rotas.
-- Consulta de artigos, preços, cores e disponibilidade.
+- Consulta de artigos, preços, cor (texto livre → `BI.u_cor`) e disponibilidade.
 - Carrinho e recuperação de estado.
 - Submissão idempotente dos pedidos.
 - Histórico, detalhe, estados e cancelamento.

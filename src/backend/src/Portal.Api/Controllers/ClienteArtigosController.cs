@@ -33,11 +33,4 @@ public sealed class ClienteArtigosController : ControllerBase
 
         return Ok(artigo);
     }
-
-    [HttpGet("~/api/v1/cliente/cores")]
-    public async Task<IActionResult> Cores(CancellationToken ct)
-    {
-        var cores = await _catalogo.ListarCoresAsync(ct);
-        return Ok(cores);
-    }
 }

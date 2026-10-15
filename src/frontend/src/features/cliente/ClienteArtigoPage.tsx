@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  MenuItem,
   TextField,
   Typography,
 } from '@mui/material'
@@ -11,6 +10,9 @@ import { useNavigate } from 'react-router-dom'
 import { clienteApi, type ClienteArtigo } from './clienteApi'
 import { useClienteAuth } from './ClienteAuthContext'
 import { loadCarrinho, saveCarrinho, upsertLinha } from './carrinhoStorage'
+
+/** Alinhado a BI.u_cor varchar(100) e ClienteCorLimits.MaxLength. */
+const COR_MAX_LENGTH = 100
 
 export function ClienteArtigoPage() {
   const { cliente } = useClienteAuth()
@@ -49,7 +51,7 @@ export function ClienteArtigoPage() {
     const next = upsertLinha(linhas, {
       ref: artigo.ref,
       design: artigo.design,
-      cor: cor.trim(),
+      cor: cor.trim().slice(0, COR_MAX_LENGTH),
       qtt,
       precoUnitario: artigo.precoUnitario,
     })
@@ -86,22 +88,14 @@ export function ClienteArtigoPage() {
           {artigo.avisoStockBaixo && (
             <Alert severity="warning">Disponibilidade limitada (a quantidade exacta não é mostrada).</Alert>
           )}
-          {artigo.cores.length > 0 && (
-            <TextField
-              select
-              label="Cor (opcional)"
-              value={cor}
-              onChange={(e) => setCor(e.target.value)}
-              fullWidth
-            >
-              <MenuItem value="">Sem cor</MenuItem>
-              {artigo.cores.map((c) => (
-                <MenuItem key={c.codigo} value={c.codigo}>
-                  {c.nome}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
+          <TextField
+            label="Cor (opcional)"
+            value={cor}
+            onChange={(e) => setCor(e.target.value.slice(0, COR_MAX_LENGTH))}
+            fullWidth
+            inputProps={{ maxLength: COR_MAX_LENGTH }}
+            helperText={`Texto livre, até ${COR_MAX_LENGTH} caracteres. Pode deixar em branco.`}
+          />
           <TextField
             label="Quantidade"
             type="number"
