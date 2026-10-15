@@ -987,6 +987,12 @@ Registar resultado neste documento (data, stamps, conclusão: confirma / refuta 
 | `docs/business-flows.md` | Fluxos MVP; Centro/TV e circuito armazém alinhados à UI. Para hipóteses/UAT/pendentes preferir este ficheiro (`PROJECT-STATE`) |
 | `docs/auth-portal-identity.md` | Identity |
 | `docs/api-contract.md` | Contratos API (incl. `distribuicaoLogica` em `centro-estados`; `procura-aberta` + paginação 1A) |
+| [`portal-mobile-requisitos-funcionais.md`](./portal-mobile-requisitos-funcionais.md) | **Portal Mobile** — requisitos funcionais consolidados (SoT de comportamento). Não autoriza produção. Não altera o circuito logístico 1→66→65 deste SoT. |
+| [`portal-mobile-plano-geral-implementacao.md`](./portal-mobile-plano-geral-implementacao.md) | **Portal Mobile** — plano geral de implementação (execução ponta a ponta). SoT funcional continua a ser os requisitos. |
+| [`portal-mobile-auth-cliente.md`](./portal-mobile-auth-cliente.md) | **Portal Mobile** — auth clientes (`ls_cliente_auth`, `u_HcaClienteAuth`). |
+| [`portal-mobile-deploy-uat.md`](./portal-mobile-deploy-uat.md) | **Portal Mobile** — scripts e notas de deploy UAT (sem produção). |
+| [`portal-mobile-etapa-2.1.md`](./portal-mobile-etapa-2.1.md) | **Portal Mobile** — acta técnica, bloqueadores e checklist PHC. |
+| [`portal-mobile-sp-criar-pedido.md`](./portal-mobile-sp-criar-pedido.md) | **Portal Mobile** — SP UAT `sp_HCA_criar_pedido_mobile` (`ndos=67`). |
 | Código realtime | `Portal.Api/Realtime`, `Portal.Application/Realtime`, hubs |
 | Código TV Kapps | `PainelQuery.ListarTvKappsResumoAsync`, `CentroTvPage`, `tvKappsResumo.ts` |
 | Código distribuição lógica | `DistribuicaoLogicaCalculator`, `PainelQuery.ContarDistribuicaoLogicaAsync`, `centroUi.tsx` |

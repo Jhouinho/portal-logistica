@@ -34,6 +34,13 @@ Raiz do repo: [`../README.md`](../README.md).
 | **SQL views/SPs para BD cliente** | [`SQL_APLICAR_CLIENTE.md`](./SQL_APLICAR_CLIENTE.md) (+ [`../sql/DEPLOY_CLIENTE_COMPLETO.sql`](../sql/DEPLOY_CLIENTE_COMPLETO.sql)) |
 | Briefing orientador | `validacao-orientador.md` |
 | Plano de sprints (histórico) | `implementation-plan.md` |
+| **Portal Mobile — requisitos funcionais** (SoT comportamento pretendido) | [`portal-mobile-requisitos-funcionais.md`](./portal-mobile-requisitos-funcionais.md) |
+| **Portal Mobile — plano geral de implementação** | [`portal-mobile-plano-geral-implementacao.md`](./portal-mobile-plano-geral-implementacao.md) |
+| **Portal Mobile — auth clientes** | [`portal-mobile-auth-cliente.md`](./portal-mobile-auth-cliente.md) |
+| **Portal Mobile — estados** | [`portal-mobile-estados.md`](./portal-mobile-estados.md) |
+| **Portal Mobile — inventário etapa 0** | [`portal-mobile-inventario-etapa0.md`](./portal-mobile-inventario-etapa0.md) |
+| **Portal Mobile — Etapa 2.1** (acta técnica, bloqueadores, checklist PHC) | [`portal-mobile-etapa-2.1.md`](./portal-mobile-etapa-2.1.md) |
+| **Portal Mobile — SP criar pedido** (UAT `ndos=67`) | [`portal-mobile-sp-criar-pedido.md`](./portal-mobile-sp-criar-pedido.md) |
 
 ## Histórico / Fase 0B (SUPERSEDED como SoT)
 

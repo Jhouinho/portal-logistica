@@ -11,6 +11,16 @@ import { RequireAuth } from './app/RequireAuth'
 import { RequireAdmin } from './app/RequireAdmin'
 import { OperacoesHubLayout } from './app/OperacoesHubLayout'
 import { AppShell } from './app/AppShell'
+import { ClienteAuthProvider } from './features/cliente/ClienteAuthContext'
+import { RequireClienteAuth } from './features/cliente/RequireClienteAuth'
+import { ClienteShell } from './features/cliente/ClienteShell'
+import { ClienteLoginPage } from './features/cliente/ClienteLoginPage'
+import { ClientePrimeiroAcessoPage } from './features/cliente/ClientePrimeiroAcessoPage'
+import { ClienteRecuperarPage } from './features/cliente/ClienteRecuperarPage'
+import { ClienteHomePage } from './features/cliente/ClienteHomePage'
+import { ClienteArtigoPage } from './features/cliente/ClienteArtigoPage'
+import { ClienteCarrinhoPage } from './features/cliente/ClienteCarrinhoPage'
+import { ClientePedidoPage } from './features/cliente/ClientePedidoPage'
 import { EncomendasHubPage } from './features/encomendas/EncomendasHubPage'
 import { EncomendaDetailPage } from './features/encomendas/EncomendaDetailPage'
 import { PickingPage } from './features/picking/PickingPage'
@@ -87,6 +97,27 @@ function AppChrome({ children }: { children: React.ReactNode }) {
   )
 }
 
+function ClienteRoutes() {
+  return (
+    <ClienteAuthProvider>
+      <Routes>
+        <Route path="login" element={<ClienteLoginPage />} />
+        <Route path="primeiro-acesso" element={<ClientePrimeiroAcessoPage />} />
+        <Route path="recuperar" element={<ClienteRecuperarPage />} />
+        <Route element={<RequireClienteAuth />}>
+          <Route element={<ClienteShell />}>
+            <Route index element={<ClienteHomePage />} />
+            <Route path="novo" element={<ClienteArtigoPage />} />
+            <Route path="carrinho" element={<ClienteCarrinhoPage />} />
+            <Route path="pedidos/:bostamp" element={<ClientePedidoPage />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/cliente/login" replace />} />
+      </Routes>
+    </ClienteAuthProvider>
+  )
+}
+
 export default function App() {
   return (
     <ColorModeProvider>
@@ -97,6 +128,7 @@ export default function App() {
               {/* Links públicos de parede — sem credenciais */}
               <Route path="/tv" element={<CentroTvPage />} />
               <Route path="/centro-tv" element={<CentroTvPage />} />
+              <Route path="/cliente/*" element={<ClienteRoutes />} />
               <Route path="/*" element={<PortalRoutes />} />
             </Routes>
           </BrowserRouter>

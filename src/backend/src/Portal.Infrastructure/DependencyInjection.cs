@@ -4,10 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Portal.Application.Auth;
+using Portal.Application.Cliente;
 using Portal.Application.Encomendas;
 using Portal.Application.Painel;
 using Portal.Application.PrevisoesEntrada;
 using Portal.Infrastructure.Auth;
+using Portal.Infrastructure.Cliente;
 using Portal.Infrastructure.Encomendas;
 using Portal.Infrastructure.Identity;
 using Portal.Infrastructure.Options;
@@ -24,6 +26,7 @@ public static class DependencyInjection
     {
         services.Configure<PhcOptions>(configuration.GetSection(PhcOptions.SectionName));
         services.Configure<PortalAppOptions>(configuration.GetSection(PortalAppOptions.SectionName));
+        services.Configure<PortalClienteOptions>(configuration.GetSection(PortalClienteOptions.SectionName));
         services.Configure<PlaneamentoOptions>(configuration.GetSection(PlaneamentoOptions.SectionName));
         services.Configure<PlaneamentoSettings>(configuration.GetSection(PlaneamentoSettings.SectionName));
         services.Configure<SerieEncomendasSettings>(configuration.GetSection(SerieEncomendasSettings.SectionName));
@@ -70,6 +73,32 @@ public static class DependencyInjection
                 return Task.CompletedTask;
             };
         });
+
+        services.AddAuthentication()
+            .AddCookie(ClienteAuthConstants.CookieScheme, options =>
+            {
+                options.Cookie.Name = ClienteAuthConstants.CookieName;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.SlidingExpiration = true;
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(ClienteAuthConstants.SessionMinutes);
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                };
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                };
+            });
+
+        services.AddSingleton<IPasswordHasher<ClientePasswordUser>, PasswordHasher<ClientePasswordUser>>();
+        services.AddScoped<IClienteAuthService, ClienteAuthService>();
+        services.AddScoped<IClienteCatalogoQuery, ClienteCatalogoQuery>();
+        services.AddScoped<IClientePedidosService, ClientePedidosService>();
 
         services.AddScoped<IUserLookup, UserLookup>();
         services.AddScoped<IPhcAdminUsers, PhcAdminUsers>();

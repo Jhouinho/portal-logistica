@@ -1,9 +1,12 @@
 using System.IO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Portal.Api.Hubs;
 using Portal.Api.Realtime;
 using Portal.Application;
+using Portal.Application.Cliente;
 using Portal.Infrastructure;
 using Portal.Infrastructure.Auth;
 using Portal.Infrastructure.Identity;
@@ -33,7 +36,19 @@ try
         .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
         .SetApplicationName("LilianaSerodio.Portal");
 
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.DefaultPolicy = new AuthorizationPolicyBuilder(IdentityConstants.ApplicationScheme)
+            .RequireAuthenticatedUser()
+            .Build();
+        options.AddPolicy(ClienteAuthConstants.PolicyName, policy =>
+        {
+            policy.AddAuthenticationSchemes(ClienteAuthConstants.CookieScheme);
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim(ClienteAuthConstants.ClaimNo);
+            policy.RequireClaim(ClienteAuthConstants.ClaimEstab);
+        });
+    });
     builder.Services.AddControllers();
     builder.Services.AddSignalR();
     builder.Services.AddHostedService<ExternalChangeRealtimeHostedService>();
