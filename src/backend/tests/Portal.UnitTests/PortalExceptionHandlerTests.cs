@@ -23,8 +23,9 @@ public class PortalExceptionHandlerTests
         Assert.True(ok);
         Assert.Equal(400, ctx.Response.StatusCode);
         var body = await ReadBody(ctx);
-        Assert.Contains("Quantidade inválida.", body, StringComparison.Ordinal);
-        Assert.DoesNotContain("SqlException", body, StringComparison.OrdinalIgnoreCase);
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal("Quantidade inválida.", doc.RootElement.GetProperty("detail").GetString());
+        Assert.Equal(400, doc.RootElement.GetProperty("status").GetInt32());
     }
 
     [Fact]
@@ -45,11 +46,19 @@ public class PortalExceptionHandlerTests
         var body = await ReadBody(ctx);
         Assert.DoesNotContain(secret, body, StringComparison.Ordinal);
         Assert.DoesNotContain("Connection string", body, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(PortalExceptionHandler.GenericMessage, body, StringComparison.Ordinal);
-        Assert.Contains("corr-test-abc", body, StringComparison.Ordinal);
+
         using var doc = JsonDocument.Parse(body);
-        Assert.True(doc.RootElement.TryGetProperty("correlationId", out _)
-                    || doc.RootElement.TryGetProperty("extensions", out _));
+        Assert.Equal(PortalExceptionHandler.GenericMessage, doc.RootElement.GetProperty("detail").GetString());
+        Assert.Equal(500, doc.RootElement.GetProperty("status").GetInt32());
+
+        string? correlation = null;
+        if (doc.RootElement.TryGetProperty("correlationId", out var cid))
+            correlation = cid.GetString();
+        else if (doc.RootElement.TryGetProperty("extensions", out var ext)
+                 && ext.TryGetProperty("correlationId", out var cid2))
+            correlation = cid2.GetString();
+
+        Assert.Equal("corr-test-abc", correlation);
     }
 
     private static DefaultHttpContext NewContext()

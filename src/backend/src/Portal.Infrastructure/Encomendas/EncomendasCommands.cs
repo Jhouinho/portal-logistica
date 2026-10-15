@@ -4,6 +4,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using Portal.Application.Encomendas;
 using Portal.Infrastructure.Options;
+using Portal.Infrastructure.Sql;
 
 namespace Portal.Infrastructure.Encomendas;
 
@@ -68,7 +69,8 @@ public sealed class EncomendasCommands : IEncomendasCommands
         }
         catch (SqlException ex)
         {
-            throw MapSql(ex);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -123,7 +125,8 @@ public sealed class EncomendasCommands : IEncomendasCommands
         }
         catch (SqlException ex)
         {
-            throw MapSql(ex);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -177,7 +180,8 @@ public sealed class EncomendasCommands : IEncomendasCommands
         }
         catch (SqlException ex)
         {
-            throw MapSql(ex);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -222,7 +226,8 @@ public sealed class EncomendasCommands : IEncomendasCommands
         }
         catch (SqlException ex)
         {
-            throw MapSql(ex);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -309,7 +314,8 @@ public sealed class EncomendasCommands : IEncomendasCommands
         }
         catch (SqlException ex)
         {
-            throw MapSql(ex);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -345,7 +351,8 @@ public sealed class EncomendasCommands : IEncomendasCommands
         }
         catch (SqlException ex)
         {
-            throw MapSql(ex);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -385,38 +392,9 @@ public sealed class EncomendasCommands : IEncomendasCommands
         }
         catch (SqlException ex)
         {
-            throw MapSql(ex);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
-    }
-
-    private static PortalBusinessException MapSql(SqlException ex)
-    {
-        var msg = ex.Message ?? "Erro SQL.";
-        if (msg.Contains("LINHAS_SEM_AUTORIZACAO", StringComparison.OrdinalIgnoreCase))
-            return new PortalBusinessException(
-                "LINHAS_SEM_AUTORIZACAO: Existem linhas com quantidade autorizada a 0. Confirme para avançar.",
-                409);
-        if (msg.Contains("não encontrada", StringComparison.OrdinalIgnoreCase) &&
-            !msg.Contains("não tem quantidade prevista", StringComparison.OrdinalIgnoreCase))
-            return new PortalBusinessException(msg, 404);
-        if (msg.Contains("Conflito", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("Transição inválida", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("congelada", StringComparison.OrdinalIgnoreCase))
-            return new PortalBusinessException(msg, 409);
-        // PR3-C — erros de previsão (sem teto: mensagem "Quantidade prevista insuficiente" deixou de ser emitida)
-        if (msg.Contains("Quantidade prevista insuficiente", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("Não existe uma previsão de entrada aberta", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("não tem quantidade prevista registada", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("previsão fechada", StringComparison.OrdinalIgnoreCase))
-            return new PortalBusinessException(msg, 409);
-        // Legado: mensagem antiga do SP pré-PR2-A
-        if (msg.Contains("Stock insuficiente", StringComparison.OrdinalIgnoreCase))
-            return new PortalBusinessException(msg, 409);
-        if (msg.Contains("inválida", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("obrigatório", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("Indicar", StringComparison.OrdinalIgnoreCase))
-            return new PortalBusinessException(msg, 400);
-        return new PortalBusinessException(msg, 400);
     }
 
     private sealed class QtdAutRow

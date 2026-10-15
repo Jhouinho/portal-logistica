@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Portal.Application.Encomendas;
 using Portal.Application.PrevisoesEntrada;
 using Portal.Infrastructure.Options;
+using Portal.Infrastructure.Sql;
 
 namespace Portal.Infrastructure.PrevisoesEntrada;
 
@@ -92,13 +93,10 @@ public sealed class PrevisoesEntradaStore : IPrevisoesEntradaStore
                 DateOnly.FromDateTime(row.DataInicio),
                 DateOnly.FromDateTime(row.DataFim));
         }
-        catch (SqlException ex) when (IsConflict(ex))
+        catch (SqlException ex)
         {
-            throw new PortalBusinessException(ex.Message, 409);
-        }
-        catch (SqlException ex) when (ex.Number >= 50000)
-        {
-            throw new PortalBusinessException(ex.Message);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw; // unreachable — satisfaz o compilador
         }
     }
 
@@ -144,18 +142,10 @@ public sealed class PrevisoesEntradaStore : IPrevisoesEntradaStore
             var linhasDb = (await multi.ReadAsync<LinhaDb>()).ToList();
             return MapDetalhe(cab, linhasDb);
         }
-        catch (SqlException ex) when (IsConflict(ex))
+        catch (SqlException ex)
         {
-            throw new PortalBusinessException(ex.Message, 409);
-        }
-        catch (SqlException ex) when (ex.Number >= 50000)
-        {
-            var status = ex.Message.Contains("não encontrada", StringComparison.OrdinalIgnoreCase)
-                ? 404
-                : ex.Message.Contains("fechada", StringComparison.OrdinalIgnoreCase)
-                    ? 409
-                    : 400;
-            throw new PortalBusinessException(ex.Message, status);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -232,18 +222,10 @@ public sealed class PrevisoesEntradaStore : IPrevisoesEntradaStore
             var linhasDb = (await multi.ReadAsync<LinhaDb>()).ToList();
             return MapDetalhe(cab, linhasDb);
         }
-        catch (SqlException ex) when (IsConflict(ex))
+        catch (SqlException ex)
         {
-            throw new PortalBusinessException(ex.Message, 409);
-        }
-        catch (SqlException ex) when (ex.Number >= 50000)
-        {
-            var status = ex.Message.Contains("não encontrada", StringComparison.OrdinalIgnoreCase)
-                ? 404
-                : ex.Message.Contains("fechada", StringComparison.OrdinalIgnoreCase)
-                    ? 409
-                    : 400;
-            throw new PortalBusinessException(ex.Message, status);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -272,18 +254,10 @@ public sealed class PrevisoesEntradaStore : IPrevisoesEntradaStore
             var linhasDb = (await multi.ReadAsync<LinhaDb>()).ToList();
             return (MapDetalhe(cab, linhasDb), meta?.LinhasAdicionadas ?? 0);
         }
-        catch (SqlException ex) when (IsConflict(ex))
+        catch (SqlException ex)
         {
-            throw new PortalBusinessException(ex.Message, 409);
-        }
-        catch (SqlException ex) when (ex.Number >= 50000)
-        {
-            var status = ex.Message.Contains("não encontrada", StringComparison.OrdinalIgnoreCase)
-                ? 404
-                : ex.Message.Contains("fechada", StringComparison.OrdinalIgnoreCase)
-                    ? 409
-                    : 400;
-            throw new PortalBusinessException(ex.Message, status);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -304,13 +278,6 @@ public sealed class PrevisoesEntradaStore : IPrevisoesEntradaStore
                 l.QuantidadePrevista,
                 l.QuantidadeAlocada,
                 l.QuantidadeDisponivel)).ToList());
-
-    private static bool IsConflict(SqlException ex) =>
-        ex.Number == 2627 || ex.Number == 2601
-        || (ex.Number >= 50000 && (
-            ex.Message.Contains("sobreposto", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("previsão aberta", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("fechada", StringComparison.OrdinalIgnoreCase)));
 
     private sealed class ListaDb
     {

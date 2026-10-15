@@ -1,9 +1,9 @@
 using System.IO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Portal.Api.Errors;
+using Portal.Api.Hosting;
 using Portal.Api.Hubs;
 using Portal.Api.Realtime;
 using Portal.Application;
@@ -27,13 +27,8 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        // IIS / proxy inverso: o esquema HTTPS chega via X-Forwarded-Proto.
-        options.KnownNetworks.Clear();
-        options.KnownProxies.Clear();
-    });
+    // IIS + ANCM: confia no loopback por omissão; proxies extra só via ForwardedHeaders:KnownProxies/Networks.
+    ForwardedHeadersSetup.Configure(builder.Services, builder.Configuration);
 
     builder.Services.AddExceptionHandler<PortalExceptionHandler>();
     builder.Services.AddProblemDetails();

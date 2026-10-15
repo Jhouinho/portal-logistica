@@ -187,6 +187,17 @@ A aplicação autentica com **ASP.NET Core Identity** (tabelas `u_HcaLogi*` na B
 - CORS alinhado à origem da interface (com credenciais)
 - Swagger desativado ou protegido em produção
 - Contas de serviço IIS com privilégios mínimos no filesystem
+- Cookies de autenticação (`ls_portal_auth`, `ls_cliente_auth`): **Secure** por omissão. Em Development local, `Portal:AllowInsecureAuthCookies=true` (ver `appsettings.Development.json`) permite HTTP. Staging/UAT/Production devem manter `false`.
+- **Forwarded headers:** a API confia nos defaults ASP.NET Core (loopback — típico IIS + ANCM). **Não** se limpam `KnownProxies`/`KnownNetworks`. Se existir proxy inverso adicional (ARR noutro host), configurar explicitamente:
+
+```json
+"ForwardedHeaders": {
+  "KnownProxies": [ "10.0.0.5" ],
+  "KnownNetworks": [ "10.0.0.0/8" ]
+}
+```
+
+Validar em UAT/IIS: pedido com `X-Forwarded-Proto` de origem **não** listada não deve alterar o esquema; pedido através do IIS/ANCM local deve ver HTTPS correctamente.
 
 ---
 

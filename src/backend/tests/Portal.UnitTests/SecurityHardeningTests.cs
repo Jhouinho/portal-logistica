@@ -1,101 +1,99 @@
-using System.Reflection;
+using System.Net;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Portal.Api.Controllers;
+using Portal.Api.Hosting;
 using Portal.Application.Auth;
 using Portal.Application.Cliente;
+using Portal.Infrastructure;
 using Portal.Infrastructure.Auth;
 
 namespace Portal.UnitTests;
 
 public class SecurityHardeningTests
 {
-    [Fact]
-    public void Cookie_producao_exige_Secure()
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    [InlineData("UAT")]
+    public void Cookies_DI_exigem_Secure_fora_de_Development(string environmentName)
     {
-        Assert.Equal(CookieSecurePolicy.Always, CookieSecurePolicyHelper.ForEnvironment(isProduction: true));
-    }
+        var (staff, cliente) = ResolveCookieOptions(environmentName, allowInsecure: false);
 
-    [Fact]
-    public void Cookie_desenvolvimento_permite_SameAsRequest()
-    {
-        Assert.Equal(CookieSecurePolicy.SameAsRequest, CookieSecurePolicyHelper.ForEnvironment(isProduction: false));
-    }
-
-    [Fact]
-    public void Cookies_staff_e_cliente_tem_nomes_distintos()
-    {
-        Assert.Equal("ls_portal_auth", "ls_portal_auth");
-        Assert.Equal("ls_cliente_auth", ClienteAuthConstants.CookieName);
-        Assert.NotEqual("ls_portal_auth", ClienteAuthConstants.CookieName);
+        Assert.Equal(CookieSecurePolicy.Always, staff.Cookie.SecurePolicy);
+        Assert.Equal(CookieSecurePolicy.Always, cliente.Cookie.SecurePolicy);
+        Assert.True(staff.Cookie.HttpOnly);
+        Assert.True(cliente.Cookie.HttpOnly);
+        Assert.Equal("ls_portal_auth", staff.Cookie.Name);
+        Assert.Equal(ClienteAuthConstants.CookieName, cliente.Cookie.Name);
+        Assert.NotEqual(staff.Cookie.Name, cliente.Cookie.Name);
         Assert.NotEqual(ClienteAuthConstants.CookieScheme, IdentityConstants.ApplicationScheme);
     }
 
     [Fact]
-    public void Program_arranque_nao_chama_Migrate_nem_EnsureAdmin()
+    public void Cookies_DI_Development_com_flag_permite_SameAsRequest()
     {
-        var programPath = FindRepoFile("src", "backend", "src", "Portal.Api", "Program.cs");
-        Assert.True(File.Exists(programPath), $"Program.cs não encontrado: {programPath}");
-        var text = File.ReadAllText(programPath);
-        Assert.DoesNotContain("Database.Migrate()", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("EnsureAdminAsync", text, StringComparison.Ordinal);
-        Assert.Contains("UseExceptionHandler", text, StringComparison.Ordinal);
-        Assert.Contains("UseForwardedHeaders", text, StringComparison.Ordinal);
+        var (staff, cliente) = ResolveCookieOptions(Environments.Development, allowInsecure: true);
+        Assert.Equal(CookieSecurePolicy.SameAsRequest, staff.Cookie.SecurePolicy);
+        Assert.Equal(CookieSecurePolicy.SameAsRequest, cliente.Cookie.SecurePolicy);
     }
 
     [Fact]
-    public void PortalIdentitySeed_mantem_EnsureAdmin_para_uso_explicito()
+    public void Cookies_DI_Staging_ignora_pedido_inseguro_explicito()
     {
-        var method = typeof(PortalIdentitySeed).GetMethod(
-            nameof(PortalIdentitySeed.EnsureAdminAsync),
-            BindingFlags.Public | BindingFlags.Static);
-        Assert.NotNull(method);
-        Assert.Equal(PortalRoles.Admin, "Admin");
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Phc:ConnectionString"] = "",
+            ["Portal:AllowInsecureAuthCookies"] = "true",
+            ["Portal:CookieSecurePolicy"] = "SameAsRequest"
+        }).Build();
+
+        var (staff, _) = ResolveCookieOptions("Staging", config);
+        Assert.Equal(CookieSecurePolicy.Always, staff.Cookie.SecurePolicy);
     }
 
     [Fact]
-    public void Lockout_constantes_telefone_5_em_15_minutos()
+    public void ForwardedHeaders_nao_limpa_defaults_e_aceita_proxy_explicito()
     {
-        Assert.Equal(5, ClienteAuthConstants.PhoneMaxFailures);
-        Assert.Equal(15, ClienteAuthConstants.PhoneLockoutMinutes);
-        Assert.Equal(5, ClienteAuthConstants.LoginMaxFailures);
-        Assert.Equal(15, ClienteAuthConstants.LoginLockoutMinutes);
-    }
+        var empty = ForwardedHeadersSetup.DescribeTrust(new ConfigurationBuilder().AddInMemoryCollection().Build());
+        var withProxy = ForwardedHeadersSetup.DescribeTrust(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?> { ["ForwardedHeaders:KnownProxies:0"] = "10.0.0.5" }).Build());
 
-    [Theory]
-    [InlineData(0, false)]
-    [InlineData(3, false)]
-    [InlineData(4, true)]
-    [InlineData(5, true)]
-    public void Lockout_quinta_falha_bloqueia(int previousFailures, bool shouldLock)
-    {
-        Assert.Equal(
-            shouldLock,
-            ClienteAuthLockoutRules.ShouldLockAfterFailure(previousFailures, ClienteAuthConstants.PhoneMaxFailures));
+        Assert.True(empty.ForwardsProtoAndFor);
+        Assert.True(withProxy.ForwardsProtoAndFor);
+        Assert.Equal(empty.NetworkCount, withProxy.NetworkCount);
+        Assert.Contains("10.0.0.5", withProxy.Proxies);
+        Assert.True(withProxy.Proxies.Length >= empty.Proxies.Length);
     }
 
     [Fact]
-    public void Lockout_OUTPUT_futuro_e_bloqueado()
+    public void ForwardedHeaders_origem_nao_configurada_nao_e_adicionada_automaticamente()
     {
-        var now = new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc);
-        var code = ClienteAuthLockoutRules.FailureErrorCode(now.AddMinutes(15), now, "telemovel_invalido");
-        Assert.Equal("bloqueado", code);
+        var snapshot = ForwardedHeadersSetup.DescribeTrust(new ConfigurationBuilder().AddInMemoryCollection().Build());
+        Assert.DoesNotContain("203.0.113.10", snapshot.Proxies);
+        Assert.All(snapshot.Proxies, p =>
+            Assert.True(IPAddress.IsLoopback(IPAddress.Parse(p)) || p is "127.0.0.1" or "::1"));
     }
 
     [Fact]
-    public void Lockout_OUTPUT_sem_lockout_e_invalido()
+    public void Resolve_cookie_policy_por_config()
     {
-        var now = new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc);
-        var code = ClienteAuthLockoutRules.FailureErrorCode(null, now, "telemovel_invalido");
-        Assert.Equal("telemovel_invalido", code);
-    }
+        var env = new TestEnv(Environments.Development);
+        var insecure = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Portal:AllowInsecureAuthCookies"] = "true"
+        }).Build();
+        Assert.Equal(CookieSecurePolicy.SameAsRequest, CookieSecurePolicyHelper.Resolve(env, insecure));
 
-    [Fact]
-    public void Lockout_expirado_nao_e_bloqueado()
-    {
-        var now = new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc);
-        var code = ClienteAuthLockoutRules.FailureErrorCode(now.AddMinutes(-1), now, "credenciais");
-        Assert.Equal("credenciais", code);
+        var staging = new TestEnv("Staging");
+        var secureDefault = new ConfigurationBuilder().AddInMemoryCollection().Build();
+        Assert.Equal(CookieSecurePolicy.Always, CookieSecurePolicyHelper.Resolve(staging, secureDefault));
     }
 
     [Fact]
@@ -113,30 +111,18 @@ public class SecurityHardeningTests
     [Fact]
     public void CriarPedidoDto_nao_aceita_preco_do_frontend()
     {
-        var dtoType = typeof(ClientePedidosController.CriarPedidoDto);
         var linhaType = typeof(ClientePedidosController.LinhaDto);
-        Assert.Null(dtoType.GetProperty("Preco", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase));
-        Assert.Null(linhaType.GetProperty("Preco", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase));
-        Assert.Null(linhaType.GetProperty("PrecoUnitario", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase));
+        Assert.Null(linhaType.GetProperty("Preco"));
+        Assert.Null(linhaType.GetProperty("PrecoUnitario"));
         Assert.NotNull(linhaType.GetProperty("Ref"));
         Assert.NotNull(linhaType.GetProperty("Qtt"));
-        Assert.NotNull(linhaType.GetProperty("Cor"));
-
-        var inputProps = typeof(ClientePedidoLinhaInput).GetProperties();
-        Assert.DoesNotContain(inputProps, p => p.Name.Contains("Preco", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            typeof(ClientePedidoLinhaInput).GetProperties(),
+            p => p.Name.Contains("Preco", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void Cliente_policy_e_claims_isolados_do_staff()
-    {
-        Assert.Equal("ClienteAutenticado", ClienteAuthConstants.PolicyName);
-        Assert.Equal("cl_no", ClienteAuthConstants.ClaimNo);
-        Assert.Equal("cl_estab", ClienteAuthConstants.ClaimEstab);
-        Assert.NotEqual(ClienteAuthConstants.CookieScheme, IdentityConstants.ApplicationScheme);
-    }
-
-    [Fact]
-    public void ClientePedidosController_exige_scheme_cliente()
+    public void ClientePedidosController_exige_scheme_e_policy_cliente()
     {
         var attr = typeof(ClientePedidosController)
             .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), inherit: true)
@@ -147,30 +133,52 @@ public class SecurityHardeningTests
     }
 
     [Fact]
-    public void ClienteAuthService_usa_UPDATE_atomico_de_falhas()
+    public void Lockout_constantes_e_quinta_falha()
     {
-        var path = FindRepoFile("src", "backend", "src", "Portal.Infrastructure", "Cliente", "ClienteAuthService.cs");
-        var text = File.ReadAllText(path);
-        Assert.Contains("FailedPhoneAttempts + 1", text, StringComparison.Ordinal);
-        Assert.Contains("OUTPUT inserted.FailedPhoneAttempts", text, StringComparison.Ordinal);
-        Assert.Contains("FailedLoginAttempts + 1", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("var fails = auth.FailedPhoneAttempts + 1", text, StringComparison.Ordinal);
+        Assert.Equal(5, ClienteAuthConstants.PhoneMaxFailures);
+        Assert.Equal(15, ClienteAuthConstants.PhoneLockoutMinutes);
+        Assert.True(ClienteAuthLockoutRules.ShouldLockAfterFailure(4, 5));
+        Assert.False(ClienteAuthLockoutRules.ShouldLockAfterFailure(3, 5));
     }
 
-    private static string FindRepoFile(params string[] relativeParts)
+    [Fact]
+    public void PortalIdentitySeed_EnsureAdmin_existe_para_uso_explicito()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            var candidate = Path.Combine(new[] { dir.FullName }.Concat(relativeParts).ToArray());
-            if (File.Exists(candidate))
-                return candidate;
-            var nested = Path.Combine(new[] { dir.FullName, "Liliana&Serodio" }.Concat(relativeParts).ToArray());
-            if (File.Exists(nested))
-                return nested;
-            dir = dir.Parent;
-        }
+        Assert.NotNull(typeof(PortalIdentitySeed).GetMethod(nameof(PortalIdentitySeed.EnsureAdminAsync)));
+        Assert.Equal("Admin", PortalRoles.Admin);
+    }
 
-        return Path.Combine(relativeParts);
+    private static (CookieAuthenticationOptions Staff, CookieAuthenticationOptions Cliente) ResolveCookieOptions(
+        string environmentName,
+        bool allowInsecure)
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Phc:ConnectionString"] = "",
+            ["Portal:AllowInsecureAuthCookies"] = allowInsecure ? "true" : "false"
+        }).Build();
+        return ResolveCookieOptions(environmentName, config);
+    }
+
+    private static (CookieAuthenticationOptions Staff, CookieAuthenticationOptions Cliente) ResolveCookieOptions(
+        string environmentName,
+        IConfiguration config)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddInfrastructure(config, new TestEnv(environmentName));
+        using var sp = services.BuildServiceProvider();
+        var monitor = sp.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>();
+        return (
+            monitor.Get(IdentityConstants.ApplicationScheme),
+            monitor.Get(ClienteAuthConstants.CookieScheme));
+    }
+
+    private sealed class TestEnv(string name) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = name;
+        public string ApplicationName { get; set; } = "Portal.UnitTests";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }

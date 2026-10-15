@@ -58,7 +58,7 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<PortalIdentityDbContext>()
             .AddDefaultTokenProviders();
 
-        var securePolicy = CookieSecurePolicyHelper.ForEnvironment(environment?.IsProduction() == true);
+        var securePolicy = CookieSecurePolicyHelper.Resolve(environment, configuration);
 
         services.ConfigureApplicationCookie(options =>
         {

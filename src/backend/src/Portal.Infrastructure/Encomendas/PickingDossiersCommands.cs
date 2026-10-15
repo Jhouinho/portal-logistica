@@ -4,6 +4,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using Portal.Application.Encomendas;
 using Portal.Infrastructure.Options;
+using Portal.Infrastructure.Sql;
 
 namespace Portal.Infrastructure.Encomendas;
 
@@ -52,12 +53,8 @@ public sealed class PickingDossiersCommands : IPickingDossiersCommands
         }
         catch (SqlException ex)
         {
-            var msg = ex.Message ?? string.Empty;
-            if (msg.Contains("não encontrado", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("série inválida", StringComparison.OrdinalIgnoreCase))
-                throw new PortalBusinessException(msg, 404);
-
-            throw new PortalBusinessException(msg, 400);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -120,16 +117,8 @@ public sealed class PickingDossiersCommands : IPickingDossiersCommands
         }
         catch (SqlException ex)
         {
-            var msg = ex.Message ?? string.Empty;
-            if (msg.Contains("não encontrado", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("série inválida", StringComparison.OrdinalIgnoreCase))
-                throw new PortalBusinessException(msg, 404);
-
-            if (msg.Contains("já fechada", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("já aberta", StringComparison.OrdinalIgnoreCase))
-                throw new PortalBusinessException(msg, 409);
-
-            throw new PortalBusinessException(msg, 400);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -173,16 +162,8 @@ public sealed class PickingDossiersCommands : IPickingDossiersCommands
         }
         catch (SqlException ex)
         {
-            var msg = ex.Message ?? string.Empty;
-            if (msg.Contains("não encontrado", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("série inválida", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("fora da série", StringComparison.OrdinalIgnoreCase))
-                throw new PortalBusinessException(msg, 404);
-
-            if (msg.Contains("já realizado", StringComparison.OrdinalIgnoreCase))
-                throw new PortalBusinessException(msg, 409);
-
-            throw new PortalBusinessException(msg, 400);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
@@ -224,16 +205,8 @@ public sealed class PickingDossiersCommands : IPickingDossiersCommands
         }
         catch (SqlException ex)
         {
-            var msg = ex.Message ?? string.Empty;
-            if (msg.Contains("não encontrado", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("série inválida", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("fora da série", StringComparison.OrdinalIgnoreCase))
-                throw new PortalBusinessException(msg, 404);
-
-            if (msg.Contains("sem Check-in", StringComparison.OrdinalIgnoreCase))
-                throw new PortalBusinessException(msg, 409);
-
-            throw new PortalBusinessException(msg, 400);
+            SqlBusinessErrorMapper.ThrowMappedOrRethrow(ex);
+            throw;
         }
     }
 
