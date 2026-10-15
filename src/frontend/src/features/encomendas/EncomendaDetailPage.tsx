@@ -36,6 +36,8 @@ import { LinhaPrecoCell } from './LinhaPrecoCell'
 import { GravacaoSnackbar, type GravacaoSnack } from './GravacaoSnackbar'
 import { LinhasColGroup, linhasTableSx } from './linhasTableLayout'
 import { portalPageScrollSx } from '../centro/portalChrome'
+import { ForaDePrazoBadge } from '../centro/centroUi'
+import { FORA_DE_PRAZO_WEEK_BOUNDARY_EVENT } from '../../shared/foraDePrazoWeek'
 import { prepararAutorizacoesAntesPicking } from './persistirAutorizacoesAoCriarPicking'
 
 function fmt(n: number) {
@@ -71,6 +73,27 @@ export function EncomendaDetailPage() {
       })
     return () => {
       cancel = true
+    }
+  }, [boStamp])
+
+  // Passagem de semana: refresca foraDePrazo sem spinner (detalhe não usa React Query).
+  useEffect(() => {
+    if (!boStamp) return
+    let cancel = false
+    const onWeek = () => {
+      void api
+        .encomendaDetalhe(boStamp)
+        .then((d) => {
+          if (!cancel) setDetalhe(d)
+        })
+        .catch(() => {
+          /* manter detalhe actual se o refresh falhar */
+        })
+    }
+    window.addEventListener(FORA_DE_PRAZO_WEEK_BOUNDARY_EVENT, onWeek)
+    return () => {
+      cancel = true
+      window.removeEventListener(FORA_DE_PRAZO_WEEK_BOUNDARY_EVENT, onWeek)
     }
   }, [boStamp])
 
@@ -132,7 +155,6 @@ export function EncomendaDetailPage() {
     )
   }
 
-  const ac = detalhe.estadoPlaneamentoCodigo === 'AC'
   const soConsulta = detalhe.prontaPicking
   const voltarTo = soConsulta ? '/picking' : '/encomendas'
   const voltarLabel = soConsulta ? labels.picking : labels.encomendas
@@ -191,11 +213,7 @@ export function EncomendaDetailPage() {
 
       <Box display="flex" gap={1} flexWrap="nowrap" alignItems="center">
         <Chip size="small" label={detalhe.nomeSerie || `Série ${detalhe.serie}`} />
-        <Chip
-          size="small"
-          color={ac ? 'warning' : 'info'}
-          label={detalhe.estadoPlaneamento}
-        />
+        {detalhe.foraDePrazo === true ? <ForaDePrazoBadge /> : null}
         {detalhe.prontaPicking ? (
           <>
             <Chip size="small" color="success" label={labels.prontaParaPicking} />

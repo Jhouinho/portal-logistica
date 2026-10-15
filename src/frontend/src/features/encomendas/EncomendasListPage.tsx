@@ -29,7 +29,6 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import PriorityHighIcon from '@mui/icons-material/PriorityHigh'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import {
   api,
   caminhoDocumentos,
@@ -46,7 +45,7 @@ import { ClienteNomeDisplay } from '../../shared/ui/ClienteNomeDisplay'
 import { DossierInfoButton } from '../../shared/ui/DossierInfoButton'
 import { DateFilterField } from '../../shared/ui/DateFilterField'
 import { TimeFilterField } from '../../shared/ui/TimeFilterField'
-import { UrgenteBadge, ProgressBar } from '../centro/centroUi'
+import { UrgenteBadge, ForaDePrazoBadge, ProgressBar } from '../centro/centroUi'
 import {
   StatusBadge,
   estadoSemantic,
@@ -130,33 +129,9 @@ function dayBefore(yyyyMmDd: string): string | null {
   return `${yy}-${mm}-${dd}`
 }
 
-function chipPlaneamento(codigo: string, compact = false) {
-  const apos = codigo === 'AC'
-  const full = apos ? labels.aposCorte : labels.dentroPlaneamento
-  if (apos) {
-    return (
-      <Tooltip title={full} arrow>
-        <Box
-          component="span"
-          display="inline-flex"
-          alignItems="center"
-          justifyContent="center"
-          aria-label={full}
-          sx={{ color: estadoSemantic.atrasado.color, lineHeight: 0 }}
-        >
-          <WarningAmberIcon sx={{ fontSize: 20 }} />
-        </Box>
-      </Tooltip>
-    )
-  }
-  const short = labels.limiteCurtoDentro
-  return (
-    <Tooltip title={full} arrow>
-      <span>
-        <StatusBadge tone="emCurso" label={compact ? short : full} />
-      </span>
-    </Tooltip>
-  )
+/** Indicador temporal único: ícone «Fora de prazo» (sem chips DP/AC). */
+function indicadorForaDePrazo(foraDePrazo: boolean | undefined) {
+  return foraDePrazo === true ? <ForaDePrazoBadge /> : null
 }
 
 function chipPickStatus(pickStatus: number | undefined, modoSeparacao = false) {
@@ -1886,7 +1861,7 @@ export function EncomendasListPage({
                             </TableCell>
                             <TableCell>{e.data}</TableCell>
                             <TableCell>{e.hora}</TableCell>
-                            <TableCell align="center">{chipPlaneamento(e.estadoPlaneamentoCodigo, true)}</TableCell>
+                            <TableCell align="center">{indicadorForaDePrazo(e.foraDePrazo)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -2149,7 +2124,7 @@ export function EncomendasListPage({
                           {e.hora?.trim().match(/^(\d{1,2}:\d{2})/)?.[1] ?? e.hora}
                         </TableCell>
                         <TableCell align="center" sx={{ py: modoKapps ? 0.25 : 1 }}>
-                          {chipPlaneamento(e.estadoPlaneamentoCodigo, mostraEstadoOperacional)}
+                          {indicadorForaDePrazo(e.foraDePrazo)}
                         </TableCell>
                         {mostraEstadoOperacional ? (
                           <TableCell
@@ -2188,38 +2163,46 @@ export function EncomendasListPage({
                           onClick={(ev) => ev.stopPropagation()}
                           sx={{ px: 0.5, textAlign: 'center' }}
                         >
-                          {podeEditarUrgente ? (
-                            <Tooltip
-                              title={e.urgente ? labels.urgenteDesmarcar : labels.urgenteMarcar}
-                              arrow
-                            >
-                              <span>
-                                <Checkbox
-                                  size="small"
-                                  checked={e.urgente}
-                                  disabled={!!savingUrgente[e.boStamp]}
-                                  onChange={() => void toggleUrgente(e)}
-                                  icon={
-                                    <PriorityHighIcon fontSize="small" sx={{ opacity: 0.35 }} />
-                                  }
-                                  checkedIcon={
-                                    <PriorityHighIcon
-                                      fontSize="small"
-                                      sx={{ color: estadoSemantic.urgente.color }}
-                                    />
-                                  }
-                                  inputProps={{
-                                    'aria-label': e.urgente
-                                      ? labels.urgenteDesmarcar
-                                      : labels.urgenteMarcar,
-                                  }}
-                                  sx={{ p: 0.25 }}
-                                />
-                              </span>
-                            </Tooltip>
-                          ) : e.urgente ? (
-                            <UrgenteBadge />
-                          ) : null}
+                          <Box
+                            display="flex"
+                            flexDirection="column"
+                            alignItems="center"
+                            justifyContent="center"
+                            gap={0.35}
+                          >
+                            {podeEditarUrgente ? (
+                              <Tooltip
+                                title={e.urgente ? labels.urgenteDesmarcar : labels.urgenteMarcar}
+                                arrow
+                              >
+                                <span>
+                                  <Checkbox
+                                    size="small"
+                                    checked={e.urgente}
+                                    disabled={!!savingUrgente[e.boStamp]}
+                                    onChange={() => void toggleUrgente(e)}
+                                    icon={
+                                      <PriorityHighIcon fontSize="small" sx={{ opacity: 0.35 }} />
+                                    }
+                                    checkedIcon={
+                                      <PriorityHighIcon
+                                        fontSize="small"
+                                        sx={{ color: estadoSemantic.urgente.color }}
+                                      />
+                                    }
+                                    inputProps={{
+                                      'aria-label': e.urgente
+                                        ? labels.urgenteDesmarcar
+                                        : labels.urgenteMarcar,
+                                    }}
+                                    sx={{ p: 0.25 }}
+                                  />
+                                </span>
+                              </Tooltip>
+                            ) : e.urgente ? (
+                              <UrgenteBadge />
+                            ) : null}
+                          </Box>
                         </TableCell>
                         {!semAccao ? (
                         <TableCell

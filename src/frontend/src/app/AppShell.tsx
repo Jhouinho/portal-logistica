@@ -37,6 +37,7 @@ import { labels } from '../shared/i18n/labels'
 import { BrandLogo } from '../shared/ui/BrandLogo'
 import { ColorModeToggle } from '../shared/ui/ColorModeToggle'
 import { useOperacoesHub } from '../shared/signalr'
+import { useForaDePrazoWeekBoundaryInvalidation } from '../shared/useForaDePrazoWeekBoundary'
 import { centroColors } from '../features/centro/centroUi'
 import { etapaColors, hexToRgba, portalPrimaryCtaSx } from '../features/centro/portalChrome'
 
@@ -107,6 +108,9 @@ export function AppShell() {
     // Único ponto SignalR → KPIs (evita dupla invalidate com o Centro).
     onKappsAlterado: () => void invalidateCentroEstados(),
   })
+
+  // Passagem de semana (dom→seg Lisboa): refresca badges «Fora de prazo» sem depender de SignalR.
+  useForaDePrazoWeekBoundaryInvalidation(!!utilizador)
 
   useEffect(() => {
     const onRefresh = () => void invalidateCentroEstados()

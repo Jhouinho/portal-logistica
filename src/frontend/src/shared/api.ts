@@ -130,6 +130,11 @@ export type EncomendaListaItem = {
   moradaEntrega?: string | null
   /** REGRA B: existe quantidade materializada em ndos=66 (SUM qtt > 0). */
   temQtt66?: boolean
+  /**
+   * Indicação visual «Fora de prazo» (semana actual Lisboa + limite seg 12:30; origem ndos=1).
+   * Independente de DP/AC. Ausente/false → não mostrar.
+   */
+  foraDePrazo?: boolean
 }
 
 /** «Nome Nº» do dossier (ex.: «Picking #2»), ou «—». */
@@ -305,6 +310,8 @@ export type ArtigoProcuraItem = {
   estadoPlaneamento: string
   estadoPlaneamentoCodigo: string
   urgente: boolean
+  /** Semana actual + limite seg 12:30; origem ndos=1. Independente de DP/AC. */
+  foraDePrazo?: boolean
 }
 
 export type ArtigoProcuraResponse = {
@@ -326,6 +333,8 @@ export type ArtigoEncomendaAbertaItem = {
   hora: string
   estadoPlaneamento: string
   estadoPlaneamentoCodigo: string
+  /** Independente de DP/AC — origem ndos=1. */
+  foraDePrazo?: boolean
   ref: string
   descricao: string
   cor: string
@@ -451,6 +460,11 @@ export type EncomendaDetalhe = {
   linhas: EncomendaLinha[]
   /** REGRA B: existe quantidade materializada em ndos=66 (SUM qtt > 0). */
   temQtt66?: boolean
+  /**
+   * Indicação visual «Fora de prazo» (semana actual Lisboa + limite seg 12:30; origem ndos=1).
+   * Independente de DP/AC. Ausente/false → não mostrar.
+   */
+  foraDePrazo?: boolean
 }
 
 /** Read-model Kapps (GET .../picking-kapps). Campos em camelCase como na API. */

@@ -319,6 +319,7 @@ public sealed class EncomendasQuery : IEncomendasQuery
                 v.ndos,
                 v.nmdos,
                 v.dataobra,
+                v.ousrdata,
                 CONVERT(varchar(12), v.ousrhora) AS ousrhora,
                 v.cliente_no,
                 v.cliente_estab,
@@ -390,6 +391,7 @@ public sealed class EncomendasQuery : IEncomendasQuery
                 v.ndos,
                 v.nmdos,
                 v.dataobra,
+                v.ousrdata,
                 CONVERT(varchar(12), v.ousrhora) AS ousrhora,
                 v.cliente_no,
                 v.cliente_estab,
@@ -450,6 +452,7 @@ public sealed class EncomendasQuery : IEncomendasQuery
                     l.ndos,
                     l.nmdos,
                     l.dataobra,
+                    bo.ousrdata,
                     CONVERT(varchar(12), l.ousrhora) AS ousrhora,
                     l.cliente_no,
                     l.cliente_estab,
@@ -716,6 +719,7 @@ public sealed class EncomendasQuery : IEncomendasQuery
                 l.bostamp,
                 l.obrano,
                 l.dataobra,
+                bo.ousrdata,
                 CONVERT(varchar(12), l.ousrhora) AS ousrhora,
                 l.cliente_no,
                 l.cliente_nome,
@@ -1065,6 +1069,7 @@ public sealed class EncomendasQuery : IEncomendasQuery
         BoStamp = r.bostamp?.Trim() ?? string.Empty,
         NumeroEncomenda = r.obrano,
         DataObra = r.dataobra,
+        Ousrdata = r.ousrdata,
         Hora = r.ousrhora?.Trim() ?? string.Empty,
         ClienteNo = r.cliente_no,
         ClienteNome = r.cliente_nome?.Trim() ?? string.Empty,
@@ -1098,6 +1103,8 @@ public sealed class EncomendasQuery : IEncomendasQuery
         Ndos = r.ndos,
         NomeSerie = r.nmdos?.Trim() ?? string.Empty,
         DataObra = r.dataobra,
+        Ousrdata = r.ousrdata,
+        Ousrhora = r.ousrhora?.Trim() ?? string.Empty,
         Hora = r.ousrhora?.Trim() ?? string.Empty,
         ClienteNo = r.cliente_no,
         ClienteEstab = r.cliente_estab,
@@ -1152,6 +1159,7 @@ public sealed class EncomendasQuery : IEncomendasQuery
         public int ndos { get; init; }
         public string? nmdos { get; init; }
         public DateTime dataobra { get; init; }
+        public DateTime? ousrdata { get; init; }
         public string? ousrhora { get; init; }
         public int cliente_no { get; init; }
         public int cliente_estab { get; init; }
@@ -1204,6 +1212,7 @@ public sealed class EncomendasQuery : IEncomendasQuery
         public string? bostamp { get; init; }
         public int obrano { get; init; }
         public DateTime dataobra { get; init; }
+        public DateTime? ousrdata { get; init; }
         public string? ousrhora { get; init; }
         public int cliente_no { get; init; }
         public string? cliente_nome { get; init; }

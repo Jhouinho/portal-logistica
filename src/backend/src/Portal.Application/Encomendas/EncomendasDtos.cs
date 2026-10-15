@@ -44,7 +44,12 @@ public sealed record EncomendaListaItemDto(
     /// <summary>BO2.u_mEntrega — morada de entrega (texto corrido; null se vazio).</summary>
     string? MoradaEntrega = null,
     /// <summary>REGRA B: existe quantidade materializada em ndos=66 (SUM qtt &gt; 0).</summary>
-    bool TemQtt66 = false);
+    bool TemQtt66 = false,
+    /// <summary>
+    /// Indicação visual «Fora de prazo»: semana actual (Lisboa) + limite segunda 12:30,
+    /// com <c>Ousrdata</c>+<c>Ousrhora</c> da origem ndos=1. Independente de DP/AC.
+    /// </summary>
+    bool ForaDePrazo = false);
 
 public sealed record EncomendaListaResponseDto(
     int Page,
@@ -102,7 +107,12 @@ public sealed record EncomendaDetalheDto(
     string? MoradaEntrega,
     IReadOnlyList<EncomendaLinhaDto> Linhas,
     /// <summary>REGRA B: existe quantidade materializada em ndos=66 (SUM qtt &gt; 0).</summary>
-    bool TemQtt66 = false);
+    bool TemQtt66 = false,
+    /// <summary>
+    /// Indicação visual «Fora de prazo»: semana actual (Lisboa) + limite segunda 12:30,
+    /// com <c>Ousrdata</c>+<c>Ousrhora</c> da origem ndos=1. Independente de DP/AC.
+    /// </summary>
+    bool ForaDePrazo = false);
 
 public sealed class EncomendasFiltro
 {
@@ -221,7 +231,9 @@ public sealed record ArtigoProcuraItemDto(
     int TotalEncomendas,
     string EstadoPlaneamento,
     string EstadoPlaneamentoCodigo,
-    bool Urgente);
+    bool Urgente,
+    /// <summary>True se alguma linha do grupo está «Fora de prazo» (origem ndos=1).</summary>
+    bool ForaDePrazo = false);
 
 public sealed record ArtigoProcuraResponseDto(
     IReadOnlyList<ArtigoProcuraItemDto> Items,
@@ -263,7 +275,9 @@ public sealed record ArtigoEncomendaAbertaItemDto(
     /// <summary>BO3.TAXPOINTDT — data de entrega (leitura).</summary>
     DateTime? DataEntrega = null,
     /// <summary>BO3.u_modExp — método de expedição (leitura PHC).</summary>
-    string? MetodoExpedicao = null);
+    string? MetodoExpedicao = null,
+    /// <summary>«Fora de prazo» da encomenda original (ousrdata+ousrhora), independente de DP/AC.</summary>
+    bool ForaDePrazo = false);
 
 public sealed record ArtigoEncomendasAbertasResponseDto(
     string Ref,

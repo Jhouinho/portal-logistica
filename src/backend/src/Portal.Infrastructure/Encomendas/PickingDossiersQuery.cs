@@ -166,30 +166,18 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
                     bo.bostamp,
                     bo.obrano,
                     -- Cadeia documental: Encomenda (1) ← Picking (66) ← Separação (65).
-                    COALESCE(
-                        (
-                            SELECT MAX(o.obrano)
-                            FROM dbo.bi di WITH (NOLOCK)
-                            INNER JOIN dbo.bi oi WITH (NOLOCK)
-                                ON oi.bistamp COLLATE DATABASE_DEFAULT = di.obistamp COLLATE DATABASE_DEFAULT
-                            INNER JOIN dbo.bo o WITH (NOLOCK)
-                                ON o.bostamp COLLATE DATABASE_DEFAULT = oi.bostamp COLLATE DATABASE_DEFAULT
-                            WHERE di.bostamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
-                              AND o.ndos = @serieEncomendaDoc
-                        ),
-                        (
-                            SELECT MAX(o1.obrano)
-                            FROM dbo.bi di WITH (NOLOCK)
-                            INNER JOIN dbo.bi mid WITH (NOLOCK)
-                                ON mid.bistamp COLLATE DATABASE_DEFAULT = di.obistamp COLLATE DATABASE_DEFAULT
-                            INNER JOIN dbo.bi oi WITH (NOLOCK)
-                                ON oi.bistamp COLLATE DATABASE_DEFAULT = mid.obistamp COLLATE DATABASE_DEFAULT
-                            INNER JOIN dbo.bo o1 WITH (NOLOCK)
-                                ON o1.bostamp COLLATE DATABASE_DEFAULT = oi.bostamp COLLATE DATABASE_DEFAULT
-                            WHERE di.bostamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
-                              AND o1.ndos = @serieEncomendaDoc
-                        )
-                    ) AS obrano_origem,
+                    -- Origem atómica (espelha OrigemEncomendaResolver): hop1 se existir BO,
+                    -- senão hop2; dentro do hop MAX(obrano) + desempate bostamp.
+                    -- ousrdata/ousrhora vêm do mesmo BO que obrano_origem (nunca 66/65).
+                    COALESCE(origem_h1.obrano, origem_h2.obrano) AS obrano_origem,
+                    CASE
+                        WHEN origem_h1.obrano IS NOT NULL THEN origem_h1.ousrdata
+                        ELSE origem_h2.ousrdata
+                    END AS ousrdata_origem,
+                    CASE
+                        WHEN origem_h1.obrano IS NOT NULL THEN origem_h1.ousrhora
+                        ELSE origem_h2.ousrhora
+                    END AS ousrhora_origem,
                     CASE
                         WHEN bo.ndos = @seriePickingDoc THEN bo.obrano
                         ELSE (
@@ -250,6 +238,36 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
                     ON bo2.bo2stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
                 LEFT JOIN dbo.bo3 bo3 WITH (NOLOCK)
                     ON bo3.bo3stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
+                OUTER APPLY (
+                    SELECT TOP (1)
+                        o.obrano,
+                        o.ousrdata,
+                        CONVERT(varchar(12), o.ousrhora) AS ousrhora
+                    FROM dbo.bi di WITH (NOLOCK)
+                    INNER JOIN dbo.bi oi WITH (NOLOCK)
+                        ON oi.bistamp COLLATE DATABASE_DEFAULT = di.obistamp COLLATE DATABASE_DEFAULT
+                    INNER JOIN dbo.bo o WITH (NOLOCK)
+                        ON o.bostamp COLLATE DATABASE_DEFAULT = oi.bostamp COLLATE DATABASE_DEFAULT
+                    WHERE di.bostamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
+                      AND o.ndos = @serieEncomendaDoc
+                    ORDER BY o.obrano DESC, o.bostamp DESC
+                ) origem_h1
+                OUTER APPLY (
+                    SELECT TOP (1)
+                        o1.obrano,
+                        o1.ousrdata,
+                        CONVERT(varchar(12), o1.ousrhora) AS ousrhora
+                    FROM dbo.bi di WITH (NOLOCK)
+                    INNER JOIN dbo.bi mid WITH (NOLOCK)
+                        ON mid.bistamp COLLATE DATABASE_DEFAULT = di.obistamp COLLATE DATABASE_DEFAULT
+                    INNER JOIN dbo.bi oi WITH (NOLOCK)
+                        ON oi.bistamp COLLATE DATABASE_DEFAULT = mid.obistamp COLLATE DATABASE_DEFAULT
+                    INNER JOIN dbo.bo o1 WITH (NOLOCK)
+                        ON o1.bostamp COLLATE DATABASE_DEFAULT = oi.bostamp COLLATE DATABASE_DEFAULT
+                    WHERE di.bostamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
+                      AND o1.ndos = @serieEncomendaDoc
+                    ORDER BY o1.obrano DESC, o1.bostamp DESC
+                ) origem_h2
                 WHERE bo.ndos = @seriePickingNdos
                 GROUP BY
                     bo.bostamp,
@@ -272,7 +290,13 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
                     bo3.u_chkinur,
                     bo3.u_chkindt,
                     bo3.u_modExp,
-                    bo2.u_mEntrega
+                    bo2.u_mEntrega,
+                    origem_h1.obrano,
+                    origem_h1.ousrdata,
+                    origem_h1.ousrhora,
+                    origem_h2.obrano,
+                    origem_h2.ousrdata,
+                    origem_h2.ousrhora
             ) v
             """;
 
@@ -292,7 +316,9 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
                 v.ndos,
                 v.nmdos,
                 v.dataobra,
+                v.ousrdata_origem AS ousrdata,
                 CONVERT(varchar(12), v.ousrhora) AS ousrhora,
+                v.ousrhora_origem AS ousrhora_origem,
                 v.cliente_no,
                 v.cliente_estab,
                 v.cliente_nome,
@@ -366,6 +392,8 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
             Ndos = r.ndos,
             NomeSerie = r.nmdos?.Trim() ?? string.Empty,
             DataObra = r.dataobra,
+            Ousrdata = r.ousrdata,
+            Ousrhora = r.ousrhora_origem?.Trim() ?? string.Empty,
             Hora = r.ousrhora?.Trim() ?? string.Empty,
             ClienteNo = r.cliente_no,
             ClienteEstab = r.cliente_estab,
@@ -477,7 +505,9 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
         public int ndos { get; init; }
         public string? nmdos { get; init; }
         public DateTime dataobra { get; init; }
+        public DateTime? ousrdata { get; init; }
         public string? ousrhora { get; init; }
+        public string? ousrhora_origem { get; init; }
         public int cliente_no { get; init; }
         public int cliente_estab { get; init; }
         public string? cliente_nome { get; init; }

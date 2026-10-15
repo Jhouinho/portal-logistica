@@ -7,6 +7,9 @@ public sealed class ArtigoLinhaAberta
     public required string BoStamp { get; init; }
     public int NumeroEncomenda { get; init; }
     public DateTime DataObra { get; init; }
+    /// <summary>BO.ousrdata — dia de criação/entrada (ndos=1). Null se indisponível.</summary>
+    public DateTime? Ousrdata { get; init; }
+    /// <summary>BO.ousrhora — hora de criação/entrada (também em <see cref="Hora"/>).</summary>
     public string Hora { get; init; } = string.Empty;
     public int ClienteNo { get; init; }
     public string ClienteNome { get; init; } = string.Empty;

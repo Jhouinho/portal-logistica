@@ -13,6 +13,11 @@ public sealed class EncomendaResumo
     public int Ndos { get; init; }
     public string NomeSerie { get; init; } = string.Empty;
     public DateTime DataObra { get; init; }
+    /// <summary>BO.ousrdata — dia de criação/entrada da encomenda ndos=1. Null se origem não resolvida.</summary>
+    public DateTime? Ousrdata { get; init; }
+    /// <summary>BO.ousrhora — hora de criação/entrada da encomenda ndos=1. Vazio se origem não resolvida.</summary>
+    public string Ousrhora { get; init; } = string.Empty;
+    /// <summary>Hora apresentada / DP-AC (documento listado; em dossiers pode ser a do 66/65).</summary>
     public string Hora { get; init; } = string.Empty;
     public int ClienteNo { get; init; }
     public int ClienteEstab { get; init; }

@@ -179,6 +179,8 @@ export const labels = {
   urgenteMarcar: 'Marcar como urgente',
   urgenteDesmarcar: 'Remover urgente',
   urgenteOk: 'Prioridade urgente actualizada.',
+  /** Tooltip / aria-label do ícone de perigo (texto não visível na UI). */
+  foraDePrazo: 'Fora de prazo',
   cortesQuantidade: 'Quantidades não entregues',
   cortesQuantidadeHint:
     'Dossiers de picking (66) fechados com quantidade pendente de entrega (Qtd. documento − Expedida).',

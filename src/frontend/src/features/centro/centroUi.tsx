@@ -1,7 +1,8 @@
 import { useEffect, useState, type ElementType, type ReactNode } from 'react'
-import { Box, Typography } from '@mui/material'
+import { Box, Tooltip, Typography } from '@mui/material'
 import WifiIcon from '@mui/icons-material/Wifi'
 import WarehouseOutlinedIcon from '@mui/icons-material/WarehouseOutlined'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import type { SvgIconComponent } from '@mui/icons-material'
 import {
   StatusBadge,
@@ -12,6 +13,7 @@ import {
   portalSurface,
 } from './portalChrome'
 import { useTheme } from '@mui/material/styles'
+import { labels } from '../../shared/i18n/labels'
 
 export { centroPageBg }
 
@@ -363,4 +365,25 @@ export function ProgressBar({
 /** Compat: delega no StatusBadge semântico. */
 export function UrgenteBadge() {
   return <StatusBadge tone="urgente" label="Urgente" />
+}
+
+/**
+ * Indicação «Fora de prazo»: ícone de perigo original (WarningAmber), sem texto visível.
+ * Independente de DP/AC e de Urgente.
+ */
+export function ForaDePrazoBadge() {
+  return (
+    <Tooltip title={labels.foraDePrazo} arrow>
+      <Box
+        component="span"
+        display="inline-flex"
+        alignItems="center"
+        justifyContent="center"
+        aria-label={labels.foraDePrazo}
+        sx={{ color: estadoSemantic.atrasado.color, lineHeight: 0 }}
+      >
+        <WarningAmberIcon sx={{ fontSize: 20 }} />
+      </Box>
+    </Tooltip>
+  )
 }

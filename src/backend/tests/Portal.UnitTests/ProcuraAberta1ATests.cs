@@ -333,6 +333,7 @@ public sealed class ProcuraAberta1ATests
             Assert.Equal(a[i].EstadoPlaneamento, b[i].EstadoPlaneamento);
             Assert.Equal(a[i].EstadoPlaneamentoCodigo, b[i].EstadoPlaneamentoCodigo);
             Assert.Equal(a[i].Urgente, b[i].Urgente);
+            Assert.Equal(a[i].ForaDePrazo, b[i].ForaDePrazo);
         }
     }
 

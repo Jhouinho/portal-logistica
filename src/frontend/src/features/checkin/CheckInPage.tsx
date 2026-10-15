@@ -35,6 +35,7 @@ import { DossierInfoButton } from '../../shared/ui/DossierInfoButton'
 import {
   MiniStat,
   UrgenteBadge,
+  ForaDePrazoBadge,
   centroColors,
 } from '../centro/centroUi'
 import {
@@ -46,6 +47,7 @@ import {
   PortalEmptyState,
 } from '../centro/portalChrome'
 import { useOperacoesHub } from '../../shared/signalr'
+import { FORA_DE_PRAZO_WEEK_BOUNDARY_EVENT } from '../../shared/foraDePrazoWeek'
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value)
@@ -81,10 +83,16 @@ export function CheckInPage() {
   const [sucesso, setSucesso] = useState<string | null>(null)
   const [confirmarAberto, setConfirmarAberto] = useState(false)
   const submitLock = useRef(false)
+  /** Gerações de pedido — respostas antigas são ignoradas (inicial / SignalR / semana). */
+  const loadGenRef = useRef(0)
 
-  const carregar = useCallback(async () => {
-    setLoading(true)
-    setErro(null)
+  const carregar = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true
+    const gen = ++loadGenRef.current
+    if (!silent) {
+      setLoading(true)
+      setErro(null)
+    }
     try {
       const res = await api.pickingDossiers({
         fechada: false,
@@ -93,13 +101,18 @@ export function CheckInPage() {
         page: 1,
         pageSize: 200,
       })
+      if (gen !== loadGenRef.current) return
       setItems(res.items)
-      setSelected({})
+      // Semana: preservar selecção; o efeito em itemsVisiveis remove dossiers desaparecidos.
+      // Inicial / SignalR: comportamento anterior (limpar selecção).
+      if (!silent) setSelected({})
     } catch (e) {
+      if (gen !== loadGenRef.current) return
+      if (silent) return
       setErro(e instanceof Error ? e.message : labels.erroGenerico)
       setItems([])
     } finally {
-      setLoading(false)
+      if (!silent && gen === loadGenRef.current) setLoading(false)
     }
   }, [clienteDebounced])
 
@@ -107,7 +120,19 @@ export function CheckInPage() {
     void carregar()
   }, [carregar])
 
+  useEffect(() => {
+    return () => {
+      loadGenRef.current += 1
+    }
+  }, [])
+
   useOperacoesHub(true, { onDossier66Alterado: () => void carregar() })
+
+  useEffect(() => {
+    const onWeek = () => void carregar({ silent: true })
+    window.addEventListener(FORA_DE_PRAZO_WEEK_BOUNDARY_EVENT, onWeek)
+    return () => window.removeEventListener(FORA_DE_PRAZO_WEEK_BOUNDARY_EVENT, onWeek)
+  }, [carregar])
 
   const itemsVisiveis = useMemo(
     () => items.filter((i) => coincideMetodoExpedicao(i.metodoExpedicao, filtroMetodo)),
@@ -529,6 +554,7 @@ function DossierCard({
           <Box minWidth={0} flex={1} display="flex" alignItems="center" gap={0.75}>
             <ClienteNomeDisplay nome={item.clienteNome} nome2={item.clienteNome2} />
             {item.urgente ? <UrgenteBadge /> : null}
+            {item.foraDePrazo === true ? <ForaDePrazoBadge /> : null}
             <Typography
               variant="caption"
               color="text.secondary"

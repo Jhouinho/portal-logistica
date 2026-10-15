@@ -15,12 +15,10 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import {
   api,
   type ArtigoEncomendaAbertaItem,
@@ -29,6 +27,7 @@ import {
   type EncomendaLinha,
 } from '../../shared/api'
 import { labels } from '../../shared/i18n/labels'
+import { ForaDePrazoBadge } from '../centro/centroUi'
 import { fmtMoney, fmtDocNo, fmtDate, fmtMetodoExpedicao } from '../../shared/format'
 import { ClienteNomeDisplay, clienteNomeTitle } from '../../shared/ui/ClienteNomeDisplay'
 import { DateFilterField } from '../../shared/ui/DateFilterField'
@@ -41,7 +40,6 @@ import {
   portalPanelSx,
   PortalEmptyState,
   PortalTableScroll,
-  estadoSemantic,
 } from '../centro/portalChrome'
 import { encomendasTableSx, LinhasColGroup, linhasTableSx } from '../encomendas/linhasTableLayout'
 import { GravacaoSnackbar, type GravacaoSnack } from '../encomendas/GravacaoSnackbar'
@@ -58,32 +56,12 @@ function fmt(n: number) {
   return new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 2 }).format(n)
 }
 
-function chipPlaneamento(codigo: string, compact = false) {
+/** Cabeçalho de secção DP/AC — texto apenas (sem ícone de perigo; esse é só «Fora de prazo»). */
+function chipPlaneamentoSeccao(codigo: string) {
   const apos = codigo === 'AC'
   const full = apos ? labels.aposCorte : labels.dentroPlaneamento
-  if (apos) {
-    return (
-      <Tooltip title={full} arrow>
-        <Box
-          component="span"
-          display="inline-flex"
-          alignItems="center"
-          justifyContent="center"
-          aria-label={full}
-          sx={{ color: estadoSemantic.atrasado.color, lineHeight: 0 }}
-        >
-          <WarningAmberIcon sx={{ fontSize: 20 }} />
-        </Box>
-      </Tooltip>
-    )
-  }
-  const short = labels.limiteCurtoDentro
   return (
-    <Tooltip title={full} arrow>
-      <span>
-        <StatusBadge tone="emCurso" label={compact ? short : full} />
-      </span>
-    </Tooltip>
+    <StatusBadge tone={apos ? 'pendente' : 'emCurso'} label={full} />
   )
 }
 
@@ -722,7 +700,7 @@ export function ArtigosResumoPage({ hideHeader = false }: { hideHeader?: boolean
           {seccoes.map((sec) => (
             <Box key={sec.codigo} sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                {chipPlaneamento(sec.codigo)}
+                {chipPlaneamentoSeccao(sec.codigo)}
                 <Typography variant="subtitle2" color="text.secondary">
                   {sec.rows.length} artigo{sec.rows.length === 1 ? '' : 's'}
                 </Typography>
@@ -825,7 +803,7 @@ export function ArtigosResumoPage({ hideHeader = false }: { hideHeader?: boolean
                             </TableCell>
                             <TableCell align="right">{item.totalEncomendas}</TableCell>
                             <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                              {chipPlaneamento(item.estadoPlaneamentoCodigo, true)}
+                              {item.foraDePrazo === true ? <ForaDePrazoBadge /> : null}
                             </TableCell>
                             <TableCell
                               onClick={(ev) => ev.stopPropagation()}

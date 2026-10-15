@@ -8,17 +8,20 @@ public sealed class PickingDossiersService
     private readonly IPickingDossiersQuery _query;
     private readonly IPickingDossiersCommands _commands;
     private readonly PlaneamentoSettings _planeamento;
+    private readonly TimeProvider _time;
     private readonly int _seriePickingNdos;
 
     public PickingDossiersService(
         IPickingDossiersQuery query,
         IPickingDossiersCommands commands,
         IOptions<PlaneamentoSettings> planeamento,
-        IOptions<SerieEncomendasSettings> serie)
+        IOptions<SerieEncomendasSettings> serie,
+        TimeProvider? timeProvider = null)
     {
         _query = query;
         _commands = commands;
         _planeamento = planeamento.Value;
+        _time = timeProvider ?? TimeProvider.System;
         _seriePickingNdos = serie.Value.SeriePickingNdos;
     }
 
@@ -179,6 +182,12 @@ public sealed class PickingDossiersService
             _planeamento.HoraCorte,
             _planeamento.Fuso);
 
+        var foraDePrazo = ForaDePrazoCalculator.Classificar(
+            e.Ousrdata,
+            e.Ousrhora,
+            _time.GetUtcNow().UtcDateTime,
+            _planeamento.Fuso);
+
         return new EncomendaListaItemDto(
             e.BoStamp,
             e.NumeroEncomenda,
@@ -209,7 +218,8 @@ public sealed class PickingDossiersService
             QuantidadeDocumento: e.QuantidadeDocumento,
             QuantidadeExpedida: e.QuantidadeExpedida,
             QuantidadePendenteEntrega: e.QuantidadePendenteEntrega,
-            MoradaEntrega: string.IsNullOrWhiteSpace(e.MoradaEntrega) ? null : e.MoradaEntrega);
+            MoradaEntrega: string.IsNullOrWhiteSpace(e.MoradaEntrega) ? null : e.MoradaEntrega,
+            ForaDePrazo: foraDePrazo);
     }
 
     private static EncomendaLinhaDto MapLinha(EncomendaLinha l) =>

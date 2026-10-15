@@ -10,6 +10,7 @@ public sealed class EncomendasService
     private readonly IEncomendasCommands _commands;
     private readonly IPickingDossiersQuery _pickingDossiers;
     private readonly PlaneamentoSettings _planeamento;
+    private readonly TimeProvider _time;
     private readonly int _serieNdos;
     private readonly int _seriePickingNdos;
 
@@ -18,12 +19,14 @@ public sealed class EncomendasService
         IEncomendasCommands commands,
         IPickingDossiersQuery pickingDossiers,
         IOptions<PlaneamentoSettings> planeamento,
-        IOptions<SerieEncomendasSettings> serie)
+        IOptions<SerieEncomendasSettings> serie,
+        TimeProvider? timeProvider = null)
     {
         _query = query;
         _commands = commands;
         _pickingDossiers = pickingDossiers;
         _planeamento = planeamento.Value;
+        _time = timeProvider ?? TimeProvider.System;
         _serieNdos = serie.Value.SerieEncomendasNdos;
         _seriePickingNdos = serie.Value.SeriePickingNdos;
     }
@@ -90,6 +93,12 @@ public sealed class EncomendasService
             _planeamento.HoraCorte,
             _planeamento.Fuso);
 
+        var foraDePrazo = ForaDePrazoCalculator.Classificar(
+            cab.Ousrdata,
+            cab.Ousrhora,
+            _time.GetUtcNow().UtcDateTime,
+            _planeamento.Fuso);
+
         return new EncomendaDetalheDto(
             cab.BoStamp,
             cab.NumeroEncomenda,
@@ -112,7 +121,8 @@ public sealed class EncomendasService
             string.IsNullOrWhiteSpace(cab.MetodoExpedicao) ? null : cab.MetodoExpedicao,
             string.IsNullOrWhiteSpace(cab.MoradaEntrega) ? null : cab.MoradaEntrega,
             linhas.Select(MapLinha).ToList(),
-            cab.TemQtt66);
+            cab.TemQtt66,
+            foraDePrazo);
     }
 
     public Task<IReadOnlyList<ArtigoSugestaoDto>> SugerirArtigosAsync(
@@ -168,6 +178,7 @@ public sealed class EncomendasService
             cancellationToken);
         var msFase1 = sw.ElapsedMilliseconds;
 
+        var agoraUtc = _time.GetUtcNow().UtcDateTime;
         var items = linhas
             .Select(l =>
             {
@@ -177,7 +188,12 @@ public sealed class EncomendasService
                     _planeamento.DiaCorte,
                     _planeamento.HoraCorte,
                     _planeamento.Fuso);
-                return (Linha: l, Etiqueta: etiqueta, Codigo: codigo);
+                var fora = ForaDePrazoCalculator.Classificar(
+                    l.Ousrdata,
+                    l.Hora,
+                    agoraUtc,
+                    _planeamento.Fuso);
+                return (Linha: l, Etiqueta: etiqueta, Codigo: codigo, ForaDePrazo: fora);
             })
             .Where(x => PlaneamentoCalculator.CoincideFiltro(x.Codigo, estadoPlaneamento))
             .GroupBy(x => (
@@ -201,7 +217,8 @@ public sealed class EncomendasService
                     g.Select(x => x.Linha.BoStamp).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                     first.Etiqueta,
                     first.Codigo,
-                    g.Any(x => x.Linha.Urgente));
+                    g.Any(x => x.Linha.Urgente),
+                    g.Any(x => x.ForaDePrazo));
             })
             .OrderByDescending(i => i.Urgente)
             .ThenBy(i => i.EstadoPlaneamentoCodigo == "DP" ? 0 : 1)
@@ -313,6 +330,7 @@ public sealed class EncomendasService
         decimal StockOf(ArtigoLinhaAberta l) =>
             stockLookup.TryGetValue(StockLookupKey(l.Ref, l.Cor), out var v) ? v : 0m;
 
+        var agoraUtc = _time.GetUtcNow().UtcDateTime;
         var mapped = linhas
             .Select(l =>
             {
@@ -321,6 +339,11 @@ public sealed class EncomendasService
                     l.Hora,
                     _planeamento.DiaCorte,
                     _planeamento.HoraCorte,
+                    _planeamento.Fuso);
+                var fora = ForaDePrazoCalculator.Classificar(
+                    l.Ousrdata,
+                    l.Hora,
+                    agoraUtc,
                     _planeamento.Fuso);
                 return new ArtigoEncomendaAbertaItemDto(
                     l.BoStamp,
@@ -353,7 +376,8 @@ public sealed class EncomendasService
                     string.IsNullOrWhiteSpace(l.Usrhora) ? null : NormalizarHora(l.Usrhora),
                     l.Urgente,
                     l.DataEntrega,
-                    string.IsNullOrWhiteSpace(l.MetodoExpedicao) ? null : l.MetodoExpedicao);
+                    string.IsNullOrWhiteSpace(l.MetodoExpedicao) ? null : l.MetodoExpedicao,
+                    fora);
             })
             .Where(i => PlaneamentoCalculator.CoincideFiltro(i.EstadoPlaneamentoCodigo, estadoPlaneamento))
             .OrderByDescending(i => i.Urgente)
@@ -537,6 +561,12 @@ public sealed class EncomendasService
             _planeamento.HoraCorte,
             _planeamento.Fuso);
 
+        var foraDePrazo = ForaDePrazoCalculator.Classificar(
+            e.Ousrdata,
+            e.Ousrhora,
+            _time.GetUtcNow().UtcDateTime,
+            _planeamento.Fuso);
+
         return new EncomendaListaItemDto(
             e.BoStamp,
             e.NumeroEncomenda,
@@ -561,7 +591,8 @@ public sealed class EncomendasService
             DataEntrega: e.DataEntrega,
             MetodoExpedicao: string.IsNullOrWhiteSpace(e.MetodoExpedicao) ? null : e.MetodoExpedicao,
             MoradaEntrega: string.IsNullOrWhiteSpace(e.MoradaEntrega) ? null : e.MoradaEntrega,
-            TemQtt66: e.TemQtt66);
+            TemQtt66: e.TemQtt66,
+            ForaDePrazo: foraDePrazo);
     }
 
     private static EncomendaLinhaDto MapLinha(EncomendaLinha l) =>
