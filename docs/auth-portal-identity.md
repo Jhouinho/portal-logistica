@@ -26,7 +26,7 @@
 
 Guia passo a passo: [`fase-0b-u-HcaLogi-identity-tables.md`](./fase-0b-u-HcaLogi-identity-tables.md)
 
-A API pode aplicar a mesma schema via EF `Migrate()` no arranque; o script `029` evita duplicar se já registado em `__EFMigrationsHistory`.
+A API **não** aplica `Database.Migrate()` nem seed Admin no arranque. Schema Identity e role Admin inicial: scripts SQL (`029`, `033`) via SSMS, ou atribuição via UI/API Admin (`/administracao`).
 
 ## Tabelas
 
@@ -58,7 +58,7 @@ A API pode aplicar a mesma schema via EF `Migrate()` no arranque; o script `029`
 ## Perfil Admin
 
 - Role Identity `Admin` em `u_HcaLogiRoles`.
-- Fonte SQL: [`033_seed_role_Admin.sql`](../sql/033_seed_role_Admin.sql) (idempotente). A API (`PortalIdentitySeed`) faz o mesmo no arranque se a connection string estiver configurada — **não substitui** o script para UAT/Produção via SSMS.
+- Fonte SQL: [`033_seed_role_Admin.sql`](../sql/033_seed_role_Admin.sql) (idempotente). `PortalIdentitySeed.EnsureAdminAsync` existe no código mas **não** corre no arranque — processo controlado = script `033` ou endpoints Admin.
 - Atribuição piloto: Identity ligado ao PHC `US.usercode = sa` (por `Usercode` ou email).
 - UI `/administracao` e menu Administração só para `isAdmin`.
 - SPA pública: `/definir-password?email=…&token=…` (token Base64Url do Identity `ResetPassword`).

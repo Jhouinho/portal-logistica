@@ -128,25 +128,38 @@ public sealed class ClienteAuthService : IClienteAuthService
 
         if (!PhoneNormalizer.Matches(telemovel, tlmvl, telefone))
         {
-            var fails = auth.FailedPhoneAttempts + 1;
-            DateTime? lockout = fails >= ClienteAuthConstants.PhoneMaxFailures
-                ? now.AddMinutes(ClienteAuthConstants.PhoneLockoutMinutes)
-                : null;
-            if (lockout is not null)
-                fails = 0;
-
             await using var conn = new SqlConnection(_options.ConnectionString);
-            await conn.ExecuteAsync(new CommandDefinition(
+            // Incremento atómico na BD — evita corrida RMW que ultrapassava o limite.
+            var updated = await conn.QuerySingleOrDefaultAsync<LockoutUpdateRow>(new CommandDefinition(
                 """
                 UPDATE dbo.u_HcaClienteAuth
-                SET FailedPhoneAttempts = @fails,
-                    PhoneLockoutEnd = @lockout,
+                SET
+                    FailedPhoneAttempts = CASE
+                        WHEN FailedPhoneAttempts + 1 >= @max THEN 0
+                        ELSE FailedPhoneAttempts + 1 END,
+                    PhoneLockoutEnd = CASE
+                        WHEN FailedPhoneAttempts + 1 >= @max
+                        THEN DATEADD(minute, @minutes, SYSUTCDATETIME())
+                        ELSE PhoneLockoutEnd END,
                     UpdatedAt = SYSUTCDATETIME()
+                OUTPUT inserted.FailedPhoneAttempts AS FailedAttempts, inserted.PhoneLockoutEnd AS LockoutEnd
                 WHERE ClNo = @no AND ClEstab = @estab
+                  AND (PhoneLockoutEnd IS NULL OR PhoneLockoutEnd <= SYSUTCDATETIME())
                 """,
-                new { no, estab, fails, lockout },
+                new
+                {
+                    no,
+                    estab,
+                    max = ClienteAuthConstants.PhoneMaxFailures,
+                    minutes = ClienteAuthConstants.PhoneLockoutMinutes
+                },
                 cancellationToken: cancellationToken));
-            return (false, lockout is not null ? "bloqueado" : "telemovel_invalido");
+
+            if (updated is null)
+                return (false, "bloqueado");
+
+            return (false, ClienteAuthLockoutRules.FailureErrorCode(
+                updated.LockoutEnd, DateTime.UtcNow, "telemovel_invalido"));
         }
 
         await using (var conn = new SqlConnection(_options.ConnectionString))
@@ -208,25 +221,37 @@ public sealed class ClienteAuthService : IClienteAuthService
         var verify = _hasher.VerifyHashedPassword(HasherUser, auth.PasswordHash, password);
         if (verify == PasswordVerificationResult.Failed)
         {
-            var fails = auth.FailedLoginAttempts + 1;
-            DateTime? lockout = fails >= ClienteAuthConstants.LoginMaxFailures
-                ? now.AddMinutes(ClienteAuthConstants.LoginLockoutMinutes)
-                : null;
-            if (lockout is not null)
-                fails = 0;
-
             await using var conn = new SqlConnection(_options.ConnectionString);
-            await conn.ExecuteAsync(new CommandDefinition(
+            var updated = await conn.QuerySingleOrDefaultAsync<LockoutUpdateRow>(new CommandDefinition(
                 """
                 UPDATE dbo.u_HcaClienteAuth
-                SET FailedLoginAttempts = @fails,
-                    LoginLockoutEnd = @lockout,
+                SET
+                    FailedLoginAttempts = CASE
+                        WHEN FailedLoginAttempts + 1 >= @max THEN 0
+                        ELSE FailedLoginAttempts + 1 END,
+                    LoginLockoutEnd = CASE
+                        WHEN FailedLoginAttempts + 1 >= @max
+                        THEN DATEADD(minute, @minutes, SYSUTCDATETIME())
+                        ELSE LoginLockoutEnd END,
                     UpdatedAt = SYSUTCDATETIME()
+                OUTPUT inserted.FailedLoginAttempts AS FailedAttempts, inserted.LoginLockoutEnd AS LockoutEnd
                 WHERE ClNo = @no AND ClEstab = @estab
+                  AND (LoginLockoutEnd IS NULL OR LoginLockoutEnd <= SYSUTCDATETIME())
                 """,
-                new { no = ficha.No, estab = ficha.Estab, fails, lockout },
+                new
+                {
+                    no = ficha.No,
+                    estab = ficha.Estab,
+                    max = ClienteAuthConstants.LoginMaxFailures,
+                    minutes = ClienteAuthConstants.LoginLockoutMinutes
+                },
                 cancellationToken: cancellationToken));
-            return (false, lockout is not null ? "bloqueado" : "credenciais", null);
+
+            if (updated is null)
+                return (false, "bloqueado", null);
+
+            return (false, ClienteAuthLockoutRules.FailureErrorCode(
+                updated.LockoutEnd, DateTime.UtcNow, "credenciais"), null);
         }
 
         await using (var conn = new SqlConnection(_options.ConnectionString))
@@ -280,4 +305,10 @@ public sealed class ClienteAuthService : IClienteAuthService
     }
 
     private sealed record ChallengePayload(decimal No, decimal Estab, string Purpose, long Exp);
+
+    private sealed class LockoutUpdateRow
+    {
+        public int FailedAttempts { get; init; }
+        public DateTime? LockoutEnd { get; init; }
+    }
 }

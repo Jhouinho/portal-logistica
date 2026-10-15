@@ -80,27 +80,15 @@ public sealed class ClientePedidosController : ControllerBase
             }
         }
 
-        try
-        {
-            var linhas = body.Linhas
-                .Select(l => new ClientePedidoLinhaInput(
-                    l.LinhaOrd,
-                    l.Ref,
-                    l.Qtt,
-                    ClienteCorLimits.Normalize(l.Cor)))
-                .ToList();
-            var result = await _pedidos.CriarAsync(no, estab, key.Trim(), linhas, ct);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Falha na submissão",
-                Detail = ex.Message,
-                Status = 400
-            });
-        }
+        var linhas = body.Linhas
+            .Select(l => new ClientePedidoLinhaInput(
+                l.LinhaOrd,
+                l.Ref,
+                l.Qtt,
+                ClienteCorLimits.Normalize(l.Cor)))
+            .ToList();
+        var result = await _pedidos.CriarAsync(no, estab, key.Trim(), linhas, ct);
+        return Ok(result);
     }
 
     [HttpPost("{bostamp}/cancelar")]

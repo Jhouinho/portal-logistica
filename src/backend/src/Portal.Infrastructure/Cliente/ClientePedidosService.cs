@@ -99,7 +99,7 @@ public sealed class ClientePedidosService : IClientePedidosService
 
         return rows.Select(r =>
         {
-            var (codigo, etiqueta, podeCancelar) = MapEstado(r.Bostamp, cancelado: false);
+            var (codigo, etiqueta, podeCancelar) = ClientePedidoEstadoMapper.Map(cancelado: false);
             return new ClientePedidoListaItem(
                 r.Bostamp, r.Obrano, r.Boano, r.DataObra, r.Hora,
                 codigo, etiqueta, r.Etotaldeb, podeCancelar);
@@ -154,7 +154,7 @@ public sealed class ClientePedidosService : IClientePedidosService
             new { bostamp },
             cancellationToken: cancellationToken))).ToList();
 
-        var (codigo, etiqueta, podeCancelar) = MapEstado(cab.Bostamp, cancelado: false);
+        var (codigo, etiqueta, podeCancelar) = ClientePedidoEstadoMapper.Map(cancelado: false);
         return new ClientePedidoDetalhe(
             cab.Bostamp, cab.Obrano, cab.Boano, cab.DataObra, cab.Hora,
             codigo, etiqueta, cab.Etotaldeb, podeCancelar,
@@ -191,19 +191,6 @@ public sealed class ClientePedidosService : IClientePedidosService
         {
             return (false, "ja_cancelado");
         }
-    }
-
-    /// <summary>
-    /// Estados 1–2: submetido enquanto sem associação conhecida a destino.
-    /// Associação Cópia de Dossier ainda sem campos confirmados (Etapa 8) —
-    /// por agora tudo não cancelado = Pedido submetido (cancelável).
-    /// </summary>
-    private static (string Codigo, string Etiqueta, bool PodeCancelar) MapEstado(string bostamp, bool cancelado)
-    {
-        _ = bostamp;
-        if (cancelado)
-            return ("cancelado", "Cancelado", false);
-        return ("submetido", "Pedido submetido", true);
     }
 
     private sealed class SpResult

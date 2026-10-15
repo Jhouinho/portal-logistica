@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Portal.Application.Auth;
 using Portal.Application.Cliente;
 using Portal.Application.Encomendas;
@@ -22,7 +23,10 @@ namespace Portal.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment? environment = null)
     {
         services.Configure<PhcOptions>(configuration.GetSection(PhcOptions.SectionName));
         services.Configure<PortalAppOptions>(configuration.GetSection(PortalAppOptions.SectionName));
@@ -54,12 +58,14 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<PortalIdentityDbContext>()
             .AddDefaultTokenProviders();
 
+        var securePolicy = CookieSecurePolicyHelper.ForEnvironment(environment?.IsProduction() == true);
+
         services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.Name = "ls_portal_auth";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = securePolicy;
             options.SlidingExpiration = true;
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.Events.OnRedirectToLogin = context =>
@@ -80,7 +86,7 @@ public static class DependencyInjection
                 options.Cookie.Name = ClienteAuthConstants.CookieName;
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SecurePolicy = securePolicy;
                 options.SlidingExpiration = true;
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(ClienteAuthConstants.SessionMinutes);
                 options.Events.OnRedirectToLogin = context =>

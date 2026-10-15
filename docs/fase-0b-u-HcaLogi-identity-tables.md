@@ -13,7 +13,7 @@
 
 Criar na **mesma BD PHC** as tabelas ASP.NET Core Identity com nomes físicos `u_HcaLogi*`.
 
-A API também pode aplicar a migration no arranque (`Database.Migrate()`). O script `029` é a fonte SQL versionada para UAT/Produção (SSMS) e regista `__EFMigrationsHistory` para não duplicar.
+A API **não** executa `Database.Migrate()` no arranque. O script `029` é a fonte SQL versionada para UAT/Produção (SSMS) e regista `__EFMigrationsHistory` se a equipa usar EF noutro contexto.
 
 ## Ordem
 

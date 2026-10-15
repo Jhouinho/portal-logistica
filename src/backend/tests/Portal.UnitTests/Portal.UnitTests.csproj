@@ -21,8 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Portal.Api\Portal.Api.csproj" />
     <ProjectReference Include="..\..\src\Portal.Application\Portal.Application.csproj" />
     <ProjectReference Include="..\..\src\Portal.Domain\Portal.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Portal.Infrastructure\Portal.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

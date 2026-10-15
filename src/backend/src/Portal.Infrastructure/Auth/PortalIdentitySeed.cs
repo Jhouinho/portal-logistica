@@ -12,6 +12,7 @@ public static class PortalIdentitySeed
     /// <summary>
     /// Garante role Admin e atribui-a ao Identity ligado ao US.usercode = sa (piloto).
     /// Equivalente SQL versionado: sql/033_seed_role_Admin.sql
+    /// NÃO é chamado no arranque da API — usar o script SQL ou a UI/API Admin de forma explícita.
     /// </summary>
     public static async Task EnsureAdminAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
