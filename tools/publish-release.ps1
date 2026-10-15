@@ -10,7 +10,9 @@
 #>
 param(
   [string]$OutDir = "",
-  [switch]$Zip
+  [switch]$Zip,
+  # Reutilizar dist/ existente (útil se npm ci falhar por EPERM no esbuild.exe)
+  [switch]$SkipFrontendInstall
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,6 +28,21 @@ $frontend = Join-Path $repoRoot 'src\frontend'
 $backend = Join-Path $repoRoot 'src\backend'
 $apiProj = Join-Path $backend 'src\Portal.Api\Portal.Api.csproj'
 
+function Invoke-Npm {
+  param([Parameter(Mandatory)][string[]]$NpmArgs)
+  # npm escreve avisos em stderr; com $ErrorActionPreference=Stop o PowerShell
+  # trata NativeCommandError e aborta. Usar cmd evita isso e preserva $LASTEXITCODE.
+  $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
+  if (-not $npmCmd) { throw 'npm.cmd não encontrado no PATH' }
+  $argLine = ($NpmArgs | ForEach-Object {
+    if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+  }) -join ' '
+  cmd /c "`"$($npmCmd.Source)`" $argLine"
+  if ($LASTEXITCODE -ne 0) {
+    throw "npm $($NpmArgs -join ' ') falhou (exit $LASTEXITCODE)"
+  }
+}
+
 Write-Host "Repo: $repoRoot"
 Write-Host "Out:  $OutDir"
 
@@ -33,8 +50,24 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
 Write-Host "`n=== Frontend ===" -ForegroundColor Cyan
 Set-Location -LiteralPath $frontend
-if (Test-Path 'package-lock.json') { npm ci } else { npm install }
-npm run build
+
+$distIndex = Join-Path $frontend 'dist\index.html'
+if ($SkipFrontendInstall) {
+  if (-not (Test-Path $distIndex)) {
+    throw "-SkipFrontendInstall requer dist\index.html já gerado (npm run build)."
+  }
+  Write-Host "SkipFrontendInstall: a reutilizar $distIndex" -ForegroundColor Yellow
+} else {
+  # Liberar esbuild.exe / vite se estiverem a bloquear unlink (EPERM no Windows)
+  Get-Process -Name 'esbuild' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+  Start-Sleep -Milliseconds 500
+  if (Test-Path 'package-lock.json') { Invoke-Npm @('ci') } else { Invoke-Npm @('install') }
+  Invoke-Npm @('run', 'build')
+}
+
+if (-not (Test-Path $distIndex)) {
+  throw "Build frontend incompleto: falta $distIndex"
+}
 
 Write-Host "`n=== API publish ===" -ForegroundColor Cyan
 Set-Location -LiteralPath $backend
