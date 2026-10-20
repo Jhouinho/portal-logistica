@@ -12,4 +12,9 @@ public sealed class PortalAppOptions
     /// Em Staging/UAT/Production deve permanecer false.
     /// </summary>
     public bool AllowInsecureAuthCookies { get; set; }
+
+    /// <summary>
+    /// Opt-in para HTTP local (IIS no PC + telemóvel na LAN). Nunca em UAT/Prod reais.
+    /// </summary>
+    public bool AllowInsecureHttpCookies { get; set; }
 }

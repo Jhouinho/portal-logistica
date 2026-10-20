@@ -109,7 +109,23 @@ export function createAppTheme(mode: PaletteMode): Theme {
                     borderColor: 'rgba(15, 23, 42, 0.4)',
                   },
                 }
-              : {},
+              : {
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(91, 147, 255, 0.35)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(61, 178, 255, 0.55)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.primary.main,
+                  },
+                },
+          input: ({ theme }) => ({
+            color: theme.palette.text.primary,
+            WebkitTextFillColor: theme.palette.text.primary,
+          }),
         },
       },
       MuiInputLabel: {
@@ -120,7 +136,10 @@ export function createAppTheme(mode: PaletteMode): Theme {
                   color: theme.palette.text.secondary,
                   '&.Mui-focused': { color: theme.palette.primary.main },
                 }
-              : {},
+              : {
+                  color: theme.palette.text.secondary,
+                  '&.Mui-focused': { color: theme.palette.primary.main },
+                },
         },
       },
     },

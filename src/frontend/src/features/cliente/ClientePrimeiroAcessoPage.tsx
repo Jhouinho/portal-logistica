@@ -1,8 +1,17 @@
 import { FormEvent, useState } from 'react'
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Box, Stack, Typography } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { clienteApi } from './clienteApi'
 import { useClienteAuth } from './ClienteAuthContext'
+import {
+  ClienteAlert,
+  ClienteAuthCard,
+  ClienteBackToLogin,
+  ClientePageBg,
+  ClientePrimaryButton,
+  ClienteStepDots,
+  ClienteTextField,
+} from './clienteUi'
 
 type Step = 'nif' | 'telemovel' | 'password'
 
@@ -17,6 +26,8 @@ export function ClientePrimeiroAcessoPage() {
   const [passwordToken, setPasswordToken] = useState('')
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  const stepNum = step === 'nif' ? 1 : step === 'telemovel' ? 2 : 3
 
   async function onNif(e: FormEvent) {
     e.preventDefault()
@@ -64,52 +75,71 @@ export function ClientePrimeiroAcessoPage() {
   }
 
   return (
-    <Box minHeight="100vh" display="flex" alignItems="center" justifyContent="center" px={2} bgcolor="#f5f5f5">
-      <Paper sx={{ p: 3, width: '100%', maxWidth: 420 }}>
-        <Typography variant="h5" gutterBottom>
-          Primeiro acesso
-        </Typography>
+    <ClientePageBg>
+      <ClienteAuthCard
+        title="Primeiro acesso"
+        subtitle="Valide o NIF e o telemóvel registado no PHC e defina a sua palavra-passe. Sem SMS."
+      >
+        <ClienteStepDots step={stepNum} />
         {erro && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {erro}
-          </Alert>
+          <Box mb={2}>
+            <ClienteAlert severity="error">{erro}</ClienteAlert>
+          </Box>
         )}
         {step === 'nif' && (
-          <Box component="form" onSubmit={onNif} display="flex" flexDirection="column" gap={2}>
-            <TextField label="NIF" value={nif} onChange={(e) => setNif(e.target.value)} required />
-            <Button type="submit" variant="contained" disabled={busy}>
-              Continuar
-            </Button>
+          <Box component="form" onSubmit={onNif}>
+            <Stack spacing={2}>
+              <ClienteTextField
+                label="NIF"
+                value={nif}
+                onChange={(e) => setNif(e.target.value)}
+                required
+                inputProps={{ inputMode: 'numeric' }}
+              />
+              <ClientePrimaryButton type="submit" disabled={busy}>
+                Continuar
+              </ClientePrimaryButton>
+            </Stack>
           </Box>
         )}
         {step === 'telemovel' && (
-          <Box component="form" onSubmit={onTelemovel} display="flex" flexDirection="column" gap={2}>
-            <Typography variant="body2">Valide o telemóvel registado no PHC.</Typography>
-            <TextField label="Telemóvel" value={telemovel} onChange={(e) => setTelemovel(e.target.value)} required />
-            <Button type="submit" variant="contained" disabled={busy}>
-              Validar
-            </Button>
+          <Box component="form" onSubmit={onTelemovel}>
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                Introduza o telemóvel associado à sua ficha de cliente.
+              </Typography>
+              <ClienteTextField
+                label="Telemóvel"
+                value={telemovel}
+                onChange={(e) => setTelemovel(e.target.value)}
+                required
+                inputProps={{ inputMode: 'tel' }}
+              />
+              <ClientePrimaryButton type="submit" disabled={busy}>
+                Validar
+              </ClientePrimaryButton>
+            </Stack>
           </Box>
         )}
         {step === 'password' && (
-          <Box component="form" onSubmit={onPassword} display="flex" flexDirection="column" gap={2}>
-            <TextField
-              label="Nova palavra-passe"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              helperText="Mínimo 8 caracteres"
-            />
-            <Button type="submit" variant="contained" disabled={busy}>
-              Definir e entrar
-            </Button>
+          <Box component="form" onSubmit={onPassword}>
+            <Stack spacing={2}>
+              <ClienteTextField
+                label="Nova palavra-passe"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                helperText="Mínimo 8 caracteres"
+              />
+              <ClientePrimaryButton type="submit" disabled={busy}>
+                Definir e entrar
+              </ClientePrimaryButton>
+            </Stack>
           </Box>
         )}
-        <Button component={RouterLink} to="/cliente/login" sx={{ mt: 2 }}>
-          Voltar ao login
-        </Button>
-      </Paper>
-    </Box>
+        <ClienteBackToLogin />
+      </ClienteAuthCard>
+    </ClientePageBg>
   )
 }

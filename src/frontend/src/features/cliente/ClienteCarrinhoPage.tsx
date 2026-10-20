@@ -1,15 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
-  Alert,
   Box,
-  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
-  TextField,
+  Stack,
   Typography,
 } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
-import { clienteApi } from './clienteApi'
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
+import { useNavigate } from 'react-router-dom'
+import { clienteApi, clientePedidoNumeroLabel } from './clienteApi'
 import { useClienteAuth } from './ClienteAuthContext'
 import {
   clearCarrinho,
@@ -17,6 +21,16 @@ import {
   saveCarrinho,
   type CarrinhoLinha,
 } from './carrinhoStorage'
+import {
+  ClienteArtigoThumb,
+  ClienteErrorPanel,
+  ClientePageTitle,
+  ClientePanel,
+  ClientePrimaryButton,
+  ClienteQtyStepper,
+  ClienteSecondaryButton,
+  ClienteSuccessPanel,
+} from './clienteUi'
 
 function newIdempotencyKey(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -31,7 +45,11 @@ export function ClienteCarrinhoPage() {
   )
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [okMsg, setOkMsg] = useState<string | null>(null)
+  const [sucessoLabel, setSucessoLabel] = useState<string | null>(null)
+  const [jaExistia, setJaExistia] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  /** Reutilizada em retries / duplo clique da mesma submissão. */
+  const submitKeyRef = useRef<string | null>(null)
 
   const total = useMemo(
     () => linhas.reduce((s, l) => s + l.qtt * l.precoUnitario, 0),
@@ -42,14 +60,16 @@ export function ClienteCarrinhoPage() {
     if (!cliente) return
     setLinhas(next)
     saveCarrinho(cliente.no, cliente.estab, next)
+    submitKeyRef.current = null
   }
 
-  async function submeter() {
+  async function submeterConfirmado() {
     if (!cliente || linhas.length === 0) return
+    setConfirmOpen(false)
     setErro(null)
-    setOkMsg(null)
     setBusy(true)
-    const key = newIdempotencyKey()
+    if (!submitKeyRef.current) submitKeyRef.current = newIdempotencyKey()
+    const key = submitKeyRef.current
     try {
       const payload = linhas.map((l, i) => ({
         linhaOrd: i + 1,
@@ -60,12 +80,9 @@ export function ClienteCarrinhoPage() {
       const res = await clienteApi.criarPedido(key, payload)
       clearCarrinho(cliente.no, cliente.estab)
       setLinhas([])
-      setOkMsg(
-        res.alreadyExists
-          ? `Pedido já registado (nº ${res.obrano}).`
-          : `Pedido nº ${res.obrano} submetido com sucesso.`,
-      )
-      setTimeout(() => navigate('/cliente', { replace: true }), 1200)
+      submitKeyRef.current = null
+      setJaExistia(!!res.alreadyExists)
+      setSucessoLabel(clientePedidoNumeroLabel(res))
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Falha na submissão. O carrinho foi mantido.')
     } finally {
@@ -73,61 +90,137 @@ export function ClienteCarrinhoPage() {
     }
   }
 
+  if (sucessoLabel != null) {
+    return (
+      <Stack spacing={2.5}>
+        <ClienteSuccessPanel
+          title="Pedido submetido com sucesso!"
+          detail={
+            jaExistia
+              ? `Pedido já registado (nº ${sucessoLabel}).`
+              : `Pedido nº ${sucessoLabel} registado.`
+          }
+          highlight="A nossa equipa irá analisar o pedido. Os preços e quantidades poderão sofrer ajustes."
+        >
+          <ClientePrimaryButton onClick={() => navigate('/cliente', { replace: true })}>
+            Voltar à homepage
+          </ClientePrimaryButton>
+        </ClienteSuccessPanel>
+      </Stack>
+    )
+  }
+
   return (
-    <Box display="flex" flexDirection="column" gap={2}>
-      <Typography variant="h5">Carrinho</Typography>
-      {erro && <Alert severity="error">{erro}</Alert>}
-      {okMsg && <Alert severity="success">{okMsg}</Alert>}
-      {linhas.length === 0 && !okMsg && (
-        <Typography color="text.secondary">Carrinho vazio.</Typography>
+    <Stack spacing={2.5}>
+      <ClientePageTitle title="Carrinho" />
+
+      {erro && (
+        <ClienteErrorPanel title="Erro ao submeter o pedido" detail={erro}>
+          <ClientePrimaryButton disabled={busy || linhas.length === 0} onClick={submeterConfirmado}>
+            Tentar novamente
+          </ClientePrimaryButton>
+        </ClienteErrorPanel>
       )}
+
+      {linhas.length === 0 && !erro && (
+        <ClientePanel>
+          <Stack alignItems="center" spacing={1.5} py={3} textAlign="center">
+            <ShoppingCartOutlinedIcon sx={{ fontSize: 56, color: 'text.secondary' }} />
+            <Typography fontWeight={700} color="text.primary">
+              Carrinho vazio
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              Adicione artigos para preparar o seu pedido.
+            </Typography>
+            <ClientePrimaryButton onClick={() => navigate('/cliente/novo')}>
+              Novo pedido
+            </ClientePrimaryButton>
+          </Stack>
+        </ClientePanel>
+      )}
+
       {linhas.map((l, idx) => (
-        <Box key={`${l.ref}|${l.cor}|${idx}`} bgcolor="white" p={2} borderRadius={1}>
-          <Typography fontWeight={600}>{l.design}</Typography>
-          <Typography variant="body2">
-            {l.ref}
-            {l.cor ? ` · ${l.cor}` : ''}
-          </Typography>
-          <Box display="flex" alignItems="center" gap={1} mt={1}>
-            <TextField
-              type="number"
-              size="small"
-              label="Qtd"
-              value={l.qtt}
-              onChange={(e) => {
-                const q = Number(e.target.value)
-                if (!Number.isInteger(q) || q < 1) return
-                const next = [...linhas]
-                next[idx] = { ...l, qtt: q }
-                persist(next)
-              }}
-              inputProps={{ min: 1, step: 1 }}
-              sx={{ width: 100 }}
-            />
-            <Typography sx={{ flex: 1 }}>{(l.qtt * l.precoUnitario).toFixed(2)} €</Typography>
+        <ClientePanel key={`${l.ref}|${l.cor}|${idx}`}>
+          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            <ClienteArtigoThumb refCode={l.ref} alt={l.design} />
+            <Box flex={1} minWidth={0}>
+              <Typography fontWeight={700} color="text.primary">
+                {l.design}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {l.ref}
+                {l.cor ? ` · ${l.cor}` : ''}
+              </Typography>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                mt={1.5}
+                gap={1}
+              >
+                <ClienteQtyStepper
+                  value={l.qtt}
+                  onChange={(q) => {
+                    const next = [...linhas]
+                    next[idx] = { ...l, qtt: q }
+                    persist(next)
+                  }}
+                />
+                <Typography fontWeight={700} color="primary.main" whiteSpace="nowrap">
+                  {(l.qtt * l.precoUnitario).toFixed(2)} €
+                </Typography>
+              </Stack>
+            </Box>
             <IconButton
               aria-label="Remover"
               onClick={() => persist(linhas.filter((_, i) => i !== idx))}
+              sx={{ color: 'text.secondary' }}
             >
               <DeleteOutlineIcon />
             </IconButton>
-          </Box>
-        </Box>
+          </Stack>
+        </ClientePanel>
       ))}
+
       {linhas.length > 0 && (
         <>
-          <Typography variant="h6">Total estimado: {total.toFixed(2)} €</Typography>
-          <Button variant="contained" size="large" disabled={busy} onClick={submeter}>
-            Submeter pedido
-          </Button>
+          {!erro && (
+            <ClientePanel>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography color="text.secondary">Total estimado</Typography>
+                <Typography variant="h6" fontWeight={800} color="text.primary">
+                  {total.toFixed(2)} €
+                </Typography>
+              </Stack>
+            </ClientePanel>
+          )}
+          {!erro && (
+            <ClientePrimaryButton disabled={busy} onClick={() => setConfirmOpen(true)}>
+              Submeter pedido
+            </ClientePrimaryButton>
+          )}
+          <ClienteSecondaryButton onClick={() => navigate('/cliente/novo')}>
+            Adicionar artigos
+          </ClienteSecondaryButton>
         </>
       )}
-      <Button component={RouterLink} to="/cliente/novo">
-        Adicionar artigos
-      </Button>
-      <Button component={RouterLink} to="/cliente">
-        Página inicial
-      </Button>
-    </Box>
+
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Confirmar submissão</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Confirma a submissão do pedido? Após a submissão, não poderás cancelar o pedido. Os
+            preços e as quantidades poderão sofrer alterações durante a análise e o processamento
+            pela nossa equipa. Pretendes continuar?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexDirection: 'column' }}>
+          <ClientePrimaryButton disabled={busy} onClick={submeterConfirmado}>
+            Sim, submeter
+          </ClientePrimaryButton>
+          <ClienteSecondaryButton onClick={() => setConfirmOpen(false)}>Não</ClienteSecondaryButton>
+        </DialogActions>
+      </Dialog>
+    </Stack>
   )
 }

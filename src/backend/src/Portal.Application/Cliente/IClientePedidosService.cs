@@ -4,25 +4,33 @@ public sealed record ClientePedidoLinhaInput(int LinhaOrd, string Ref, decimal Q
 
 public sealed record ClientePedidoCreateResult(
     bool AlreadyExists,
-    string Bostamp,
-    decimal Obrano,
-    decimal Boano,
-    decimal Ndos,
-    string Nmdos,
+    string? Bostamp,
+    decimal? Obrano,
+    decimal? Boano,
+    decimal? Ndos,
+    string? Nmdos,
     decimal Etotaldeb,
-    decimal Totaldeb,
-    int Linhas);
+    decimal? Totaldeb,
+    int Linhas,
+    long? PedidoId,
+    string? NumeroInterno,
+    string Origem,
+    string EstadoCodigo,
+    string EstadoEtiqueta);
 
 public sealed record ClientePedidoListaItem(
-    string Bostamp,
-    decimal Obrano,
-    decimal Boano,
+    string? Bostamp,
+    decimal? Obrano,
+    decimal? Boano,
     DateTime DataObra,
     string? Hora,
     string EstadoCodigo,
     string EstadoEtiqueta,
     decimal Etotaldeb,
-    bool PodeCancelar);
+    bool PodeCancelar,
+    long? PedidoId,
+    string? NumeroInterno,
+    string Origem);
 
 public sealed record ClientePedidoLinhaDetalhe(
     string Ref,
@@ -33,16 +41,19 @@ public sealed record ClientePedidoLinhaDetalhe(
     decimal TotalLinha);
 
 public sealed record ClientePedidoDetalhe(
-    string Bostamp,
-    decimal Obrano,
-    decimal Boano,
+    string? Bostamp,
+    decimal? Obrano,
+    decimal? Boano,
     DateTime DataObra,
     string? Hora,
     string EstadoCodigo,
     string EstadoEtiqueta,
     decimal Etotaldeb,
     bool PodeCancelar,
-    IReadOnlyList<ClientePedidoLinhaDetalhe> Linhas);
+    IReadOnlyList<ClientePedidoLinhaDetalhe> Linhas,
+    long? PedidoId,
+    string? NumeroInterno,
+    string Origem);
 
 public interface IClientePedidosService
 {
@@ -62,12 +73,12 @@ public interface IClientePedidosService
     Task<ClientePedidoDetalhe?> ObterAsync(
         decimal no,
         decimal estab,
-        string bostamp,
+        string id,
         CancellationToken cancellationToken);
 
     Task<(bool Ok, string? Error)> CancelarAsync(
         decimal no,
         decimal estab,
-        string bostamp,
+        string id,
         CancellationToken cancellationToken);
 }

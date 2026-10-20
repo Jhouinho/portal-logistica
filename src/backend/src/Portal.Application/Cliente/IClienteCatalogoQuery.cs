@@ -19,11 +19,24 @@ public sealed record ClienteArtigoDto(
     string Ref,
     string Design,
     decimal PrecoUnitario,
-    bool AvisoStockBaixo);
+    bool AvisoStockBaixo,
+    bool TemImagem);
+
+/// <summary>Bytes da imagem do artigo (IFL.bdados ou ficheiro em ST.imagem).</summary>
+public sealed record ClienteArtigoImagemDto(
+    byte[] Conteudo,
+    string ContentType,
+    string? FileName);
 
 public interface IClienteCatalogoQuery
 {
     Task<ClienteArtigoDto?> GetArtigoAsync(
+        decimal clNo,
+        decimal clEstab,
+        string referencia,
+        CancellationToken cancellationToken);
+
+    Task<ClienteArtigoImagemDto?> GetArtigoImagemAsync(
         decimal clNo,
         decimal clEstab,
         string referencia,

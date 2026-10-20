@@ -3,12 +3,12 @@
 | Estado UI | Código API | Implementação actual |
 | --- | --- | --- |
 | Pedido submetido | `submetido` | Documento `ndos=67` sem entrada em `u_HcaPedidoMobileCancel` |
-| Cancelado | `cancelado` | Entrada em `u_HcaPedidoMobileCancel` (histórico omite; detalhe devolve 404) |
+| Cancelado | `cancelado` | `sp_HCA_cancelar_pedido_mobile`: INSERT `u_HcaPedidoMobileCancel` + `BO.fechada=1` (+ `BI.fechada=1`); histórico omite; detalhe 404 |
 | Em preparação | — | **Pendente** — exige associação Cópia de Dossier (B06–B08) |
 | Pronto para levantamento | — | **Pendente** — sem mapeamento PHC confirmado |
 | Concluído / processado | — | **Pendente** — sem campos de origem confirmados |
 
-Cancelamento: insert em `u_HcaPedidoMobileCancel`; **não** apaga BO/BI. Validação no servidor via `PodeCancelar` (só `submetido`). Histórico omite cancelados.
+Cancelamento: SP `sp_HCA_cancelar_pedido_mobile` (script `095_*.sql`) — registo portal + **fecho PHC** (`BO.fechada` / linhas). **Não** apaga BO/BI. `PodeCancelar` só em `submetido` (aberto). Histórico omite cancelados/fechados.
 
 Número apresentado ao cliente: `obrano` (**provisório** até fecho B05/C03).
 

@@ -12,9 +12,23 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      // LAN/IIS: limpar SW/caches antigos que podem deixar o telemóvel em carregamento eterno.
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister() })
+        })
+      }
+      if (window.caches) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { caches.delete(k) })
+        })
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+

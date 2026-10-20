@@ -104,6 +104,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher<ClientePasswordUser>, PasswordHasher<ClientePasswordUser>>();
         services.AddScoped<IClienteAuthService, ClienteAuthService>();
         services.AddScoped<IClienteCatalogoQuery, ClienteCatalogoQuery>();
+        services.AddScoped<IClientePmPedidoStore, ClientePmPedidoStore>();
         services.AddScoped<IClientePedidosService, ClientePedidosService>();
 
         services.AddScoped<IUserLookup, UserLookup>();

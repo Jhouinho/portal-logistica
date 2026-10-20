@@ -9,6 +9,7 @@ Aplicar por ordem:
 3. `092_create_u_HcaClienteAuth.sql` + `092b_grant_u_HcaClienteAuth.sql`
 4. `093_alter_sp_HCA_criar_pedido_mobile_cor.sql`
 5. `094_create_u_HcaPedidoMobileCancel.sql`
+6. `095_create_sp_HCA_cancelar_pedido_mobile.sql` (cancelamento = fecho PHC `BO.fechada`)
 
 ## API / IIS
 

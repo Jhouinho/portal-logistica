@@ -7,11 +7,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // LAN/IIS local: não injectar SW (evita hang em cache/update no telemóvel).
+      injectRegister: false,
+      selfDestroying: true,
       strategies: 'generateSW',
       includeAssets: ['favicon.png', 'favicon-32.png', 'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png'],
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
       manifest: {
         name: 'Portal Logística — Liliana & Seródio',

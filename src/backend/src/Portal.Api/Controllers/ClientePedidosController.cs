@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Portal.Api.Cliente;
 using Portal.Application.Cliente;
+using Portal.Application.Encomendas;
 
 namespace Portal.Api.Controllers;
 
@@ -27,13 +28,16 @@ public sealed class ClientePedidosController : ControllerBase
         return Ok(items);
     }
 
-    [HttpGet("{bostamp}")]
-    public async Task<IActionResult> Detalhe(string bostamp, CancellationToken ct)
+    /// <summary>
+    /// Detalhe: <c>pedidoId</c> (só dígitos), <c>NumeroInterno</c> (<c>PM-AAAA-######</c>) ou <c>bostamp</c> legado.
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Detalhe(string id, CancellationToken ct)
     {
         if (!ClienteSession.TryGetCliente(User, out var no, out var estab))
             return Unauthorized();
 
-        var d = await _pedidos.ObterAsync(no, estab, bostamp, ct);
+        var d = await _pedidos.ObterAsync(no, estab, id, ct);
         if (d is null)
             return NotFound(new ProblemDetails { Title = "Não encontrado", Status = 404 });
         return Ok(d);
@@ -57,6 +61,18 @@ public sealed class ClientePedidosController : ControllerBase
             });
         }
 
+        key = key.Trim();
+        if (!ClientePedidoSubmitRules.IsIdempotencyKeyLengthValid(key))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Dados inválidos",
+                Detail =
+                    $"Idempotency-Key não pode exceder {ClientePedidoSubmitRules.IdempotencyKeyMaxLength} caracteres.",
+                Status = 400
+            });
+        }
+
         if (body.Linhas is null || body.Linhas.Count == 0)
         {
             return BadRequest(new ProblemDetails
@@ -67,19 +83,6 @@ public sealed class ClientePedidosController : ControllerBase
             });
         }
 
-        foreach (var l in body.Linhas)
-        {
-            if (l.Qtt != Math.Floor(l.Qtt) || l.Qtt <= 0)
-            {
-                return BadRequest(new ProblemDetails
-                {
-                    Title = "Dados inválidos",
-                    Detail = "As quantidades devem ser números inteiros positivos.",
-                    Status = 400
-                });
-            }
-        }
-
         var linhas = body.Linhas
             .Select(l => new ClientePedidoLinhaInput(
                 l.LinhaOrd,
@@ -87,19 +90,62 @@ public sealed class ClientePedidosController : ControllerBase
                 l.Qtt,
                 ClienteCorLimits.Normalize(l.Cor)))
             .ToList();
-        var result = await _pedidos.CriarAsync(no, estab, key.Trim(), linhas, ct);
-        return Ok(result);
+
+        var linhasErro = ClientePedidoSubmitRules.ValidateLinhasOrError(linhas);
+        if (linhasErro is not null)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Dados inválidos",
+                Detail = linhasErro,
+                Status = 400
+            });
+        }
+
+        try
+        {
+            var result = await _pedidos.CriarAsync(no, estab, key, linhas, ct);
+            return Ok(result);
+        }
+        catch (PortalBusinessException ex) when (ex.StatusCode == StatusCodes.Status409Conflict)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Conflito",
+                Detail = ex.Message,
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+        catch (PortalBusinessException ex) when (ex.StatusCode is >= 400 and < 500)
+        {
+            return StatusCode(ex.StatusCode, new ProblemDetails
+            {
+                Title = "Dados inválidos",
+                Detail = ex.Message,
+                Status = ex.StatusCode
+            });
+        }
     }
 
-    [HttpPost("{bostamp}/cancelar")]
-    public async Task<IActionResult> Cancelar(string bostamp, CancellationToken ct)
+    [HttpPost("{id}/cancelar")]
+    public async Task<IActionResult> Cancelar(string id, CancellationToken ct)
     {
         if (!ClienteSession.TryGetCliente(User, out var no, out var estab))
             return Unauthorized();
 
-        var (ok, error) = await _pedidos.CancelarAsync(no, estab, bostamp, ct);
+        var (ok, error) = await _pedidos.CancelarAsync(no, estab, id, ct);
         if (!ok)
         {
+            if (error == "interno_proibido")
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+                {
+                    Title = "Acesso negado",
+                    Detail = "Não é possível cancelar este pedido após a submissão.",
+                    Status = StatusCodes.Status403Forbidden
+                });
+            }
+
             return BadRequest(new ProblemDetails
             {
                 Title = "Cancelamento não efectuado",

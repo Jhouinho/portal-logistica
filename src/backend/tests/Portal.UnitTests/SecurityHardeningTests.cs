@@ -59,6 +59,20 @@ public class SecurityHardeningTests
     }
 
     [Fact]
+    public void Cookies_DI_AllowInsecureHttpCookies_permite_SameAsRequest_em_Production()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Phc:ConnectionString"] = "",
+            ["Portal:AllowInsecureHttpCookies"] = "true"
+        }).Build();
+
+        var (staff, cliente) = ResolveCookieOptions("Production", config);
+        Assert.Equal(CookieSecurePolicy.SameAsRequest, staff.Cookie.SecurePolicy);
+        Assert.Equal(CookieSecurePolicy.SameAsRequest, cliente.Cookie.SecurePolicy);
+    }
+
+    [Fact]
     public void ForwardedHeaders_nao_limpa_defaults_e_aceita_proxy_explicito()
     {
         var empty = ForwardedHeadersSetup.DescribeTrust(new ConfigurationBuilder().AddInMemoryCollection().Build());

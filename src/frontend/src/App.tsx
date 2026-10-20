@@ -1,9 +1,10 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { CssBaseline, GlobalStyles } from '@mui/material'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { CssBaseline, GlobalStyles, ThemeProvider } from '@mui/material'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import 'dayjs/locale/pt'
 import { ColorModeProvider, useColorMode } from './shared/ColorModeContext'
+import { createAppTheme } from './shared/theme'
 import { AuthProvider } from './features/autenticacao/AuthContext'
 import { LoginPage } from './features/autenticacao/LoginPage'
 import { DefinirPasswordPage } from './features/autenticacao/DefinirPasswordPage'
@@ -84,37 +85,61 @@ function AppChrome({ children }: { children: React.ReactNode }) {
   return (
     <>
       <CssBaseline />
-      <GlobalStyles
-        styles={{
-          html: { height: '100%', overflow: 'hidden' },
-          body: { height: '100%', overflow: 'hidden', margin: 0 },
-          '#root': { height: '100%', overflow: 'hidden' },
-          ...getPortalScrollbarGlobalCss(mode),
-        }}
-      />
+      <GlobalStyles styles={{ ...getPortalScrollbarGlobalCss(mode) }} />
       {children}
     </>
   )
 }
 
+/** Portal/TV: viewport fixo. Cliente mobile: documento com scroll. */
+function RouteOverflowStyles() {
+  const { pathname } = useLocation()
+  const scrollLivre =
+    pathname.startsWith('/cliente') ||
+    pathname === '/tv' ||
+    pathname === '/centro-tv'
+
+  return (
+    <GlobalStyles
+      styles={
+        scrollLivre
+          ? {
+              html: { height: 'auto', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden' },
+              body: { height: 'auto', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden', margin: 0 },
+              '#root': { height: 'auto', minHeight: '100%', overflow: 'visible' },
+            }
+          : {
+              html: { height: '100%', overflow: 'hidden' },
+              body: { height: '100%', overflow: 'hidden', margin: 0 },
+              '#root': { height: '100%', overflow: 'hidden' },
+            }
+      }
+    />
+  )
+}
+
+const clienteDarkTheme = createAppTheme('dark')
+
 function ClienteRoutes() {
   return (
-    <ClienteAuthProvider>
-      <Routes>
-        <Route path="login" element={<ClienteLoginPage />} />
-        <Route path="primeiro-acesso" element={<ClientePrimeiroAcessoPage />} />
-        <Route path="recuperar" element={<ClienteRecuperarPage />} />
-        <Route element={<RequireClienteAuth />}>
-          <Route element={<ClienteShell />}>
-            <Route index element={<ClienteHomePage />} />
-            <Route path="novo" element={<ClienteArtigoPage />} />
-            <Route path="carrinho" element={<ClienteCarrinhoPage />} />
-            <Route path="pedidos/:bostamp" element={<ClientePedidoPage />} />
+    <ThemeProvider theme={clienteDarkTheme}>
+      <ClienteAuthProvider>
+        <Routes>
+          <Route path="login" element={<ClienteLoginPage />} />
+          <Route path="primeiro-acesso" element={<ClientePrimeiroAcessoPage />} />
+          <Route path="recuperar" element={<ClienteRecuperarPage />} />
+          <Route element={<RequireClienteAuth />}>
+            <Route element={<ClienteShell />}>
+              <Route index element={<ClienteHomePage />} />
+              <Route path="novo" element={<ClienteArtigoPage />} />
+              <Route path="carrinho" element={<ClienteCarrinhoPage />} />
+              <Route path="pedidos/:bostamp" element={<ClientePedidoPage />} />
+            </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/cliente/login" replace />} />
-      </Routes>
-    </ClienteAuthProvider>
+          <Route path="*" element={<Navigate to="/cliente/login" replace />} />
+        </Routes>
+      </ClienteAuthProvider>
+    </ThemeProvider>
   )
 }
 
@@ -124,6 +149,7 @@ export default function App() {
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt">
         <AppChrome>
           <BrowserRouter>
+            <RouteOverflowStyles />
             <Routes>
               {/* Links públicos de parede — sem credenciais */}
               <Route path="/tv" element={<CentroTvPage />} />

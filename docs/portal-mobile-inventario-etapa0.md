@@ -41,6 +41,7 @@ Percurso `/cliente/*` e `/api/v1/cliente/*` **não** devem usar estes endpoints;
 | `092b_grant_u_HcaClienteAuth.sql` | GRANT |
 | `093_alter_sp_HCA_criar_pedido_mobile_cor.sql` | TVP + `BI.u_cor` |
 | `094_create_u_HcaPedidoMobileCancel.sql` | Cancelamento portal |
+| `095_create_sp_HCA_cancelar_pedido_mobile.sql` | Cancelamento + `BO.fechada` / `BI.fechada` |
 | Actualizar `091b` / testes cor | UAT |
 
 ## Gaps de código (confirmados)

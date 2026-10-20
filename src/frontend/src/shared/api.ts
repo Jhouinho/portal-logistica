@@ -1,13 +1,30 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+const FETCH_TIMEOUT_MS = 8_000
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`${API_BASE}${path}`, {
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-      ...init,
-    })
+    const { signal: outerSignal, ...rest } = init ?? {}
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    if (outerSignal) {
+      if (outerSignal.aborted) controller.abort()
+      else outerSignal.addEventListener('abort', () => controller.abort(), { once: true })
+    }
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        credentials: 'include',
+        ...rest,
+        // headers depois do spread — senão headers extra apagam Content-Type → 415
+        headers: {
+          'Content-Type': 'application/json',
+          ...(rest.headers as Record<string, string> | undefined),
+        },
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
   } catch {
     throw new Error(
       'API indisponível. Confirme que o backend está a correr em http://localhost:5080.',

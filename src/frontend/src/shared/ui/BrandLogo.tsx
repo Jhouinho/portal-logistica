@@ -1,19 +1,19 @@
 import { Box, Typography } from '@mui/material'
 import type { SxProps, Theme } from '@mui/material/styles'
 import { labels } from '../i18n/labels'
+import logoLsflores from '../../assets/logo-lsflores.png'
 
 type BrandLogoProps = {
-  /** Mostra «Portal de Logística» (marca em texto — logotipo PNG fora do repositório público). */
+  /** Mostra «Portal de Logística» ao lado do logotipo. */
   withTitle?: boolean
-  /** Altura de referência tipográfica em px */
+  /** Altura do logotipo em px */
   height?: number
   titleVariant?: 'h5' | 'h6' | 'subtitle1' | 'body2'
   sx?: SxProps<Theme>
 }
 
 /**
- * Marca em texto (sem PNG no GitHub público).
- * O ficheiro local `logo-lsflores.png` pode existir à parte (gitignore).
+ * Logotipo L&S Flores (PNG branco — adequado a fundo escuro).
  */
 export function BrandLogo({
   withTitle = false,
@@ -21,7 +21,6 @@ export function BrandLogo({
   titleVariant = 'body2',
   sx,
 }: BrandLogoProps) {
-  const fontSize = Math.max(14, Math.round(height * 0.55))
   return (
     <Box
       display="flex"
@@ -29,19 +28,19 @@ export function BrandLogo({
       gap={1.5}
       sx={[{ color: 'inherit', minWidth: 0 }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
     >
-      <Typography
-        component="span"
-        fontWeight={800}
-        noWrap
+      <Box
+        component="img"
+        src={logoLsflores}
+        alt="L&S Flores"
         sx={{
-          fontSize,
-          letterSpacing: 0.2,
-          lineHeight: 1.1,
+          height,
+          width: 'auto',
+          maxWidth: '100%',
+          objectFit: 'contain',
+          display: 'block',
           flexShrink: 0,
         }}
-      >
-        L&S Flores
-      </Typography>
+      />
       {withTitle && (
         <Typography
           variant={titleVariant}
