@@ -25,6 +25,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline'
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined'
+import SmartphoneOutlinedIcon from '@mui/icons-material/SmartphoneOutlined'
 import TvOutlinedIcon from '@mui/icons-material/TvOutlined'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../features/autenticacao/AuthContext'
@@ -75,6 +76,11 @@ const navBase: NavItem[] = [
     to: '/pendentes-picagem',
     label: labels.pendentesPicagemMenu,
     Icon: PendingActionsOutlinedIcon,
+  },
+  {
+    to: '/pedidos-mobile',
+    label: labels.pedidosMobile,
+    Icon: SmartphoneOutlinedIcon,
   },
 ]
 

@@ -1123,4 +1123,97 @@ export const api = {
   centroEstados: () => request<CentroEstadosKpis>('/api/v1/painel/centro-estados'),
   /** Resumo Kapps para Vista TV — 1 pedido em vez de N+1 detalhe. */
   tvKappsResumo: () => request<TvKappsResumo>('/api/v1/painel/tv-kapps-resumo'),
+
+  /** Pedidos Mobile internos (staff) — área independente do circuito 1/66/65. */
+  staffPmPedidos: (params?: { filtro?: string; top?: number }) => {
+    const q = new URLSearchParams()
+    if (params?.filtro) q.set('filtro', params.filtro)
+    if (params?.top != null) q.set('top', String(params.top))
+    const qs = q.toString()
+    return request<StaffPmPedidoListaItem[]>(
+      `/api/v1/staff/pedidos-mobile${qs ? `?${qs}` : ''}`,
+    )
+  },
+  staffPmPedido: (pedidoId: number) =>
+    request<StaffPmPedidoDetalhe>(`/api/v1/staff/pedidos-mobile/${pedidoId}`),
+  staffPmAprovar: (pedidoId: number) =>
+    request<StaffPmAprovarResult>(`/api/v1/staff/pedidos-mobile/${pedidoId}/aprovar`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+  staffPmRejeitar: (pedidoId: number, motivo?: string) =>
+    request<StaffPmRejeitarResult>(`/api/v1/staff/pedidos-mobile/${pedidoId}/rejeitar`, {
+      method: 'POST',
+      body: JSON.stringify({ motivo: motivo ?? null }),
+    }),
+  staffPmGuardarPrecos: (
+    pedidoId: number,
+    linhas: { linhaOrd: number; precoUnitario: number }[],
+  ) =>
+    request<StaffPmPedidoDetalhe>(`/api/v1/staff/pedidos-mobile/${pedidoId}/precos`, {
+      method: 'PUT',
+      body: JSON.stringify({ linhas }),
+    }),
+}
+
+export type StaffPmPedidoListaItem = {
+  pedidoId: number
+  numeroInterno: string
+  clNo: number
+  clEstab: number
+  clienteNome: string
+  estadoInterno: string
+  estadoCodigo: string
+  estadoEtiqueta: string
+  dataSubmissao: string
+  etotaldeb: number
+  bostamp: string | null
+  obrano: number | null
+  ndos: number | null
+  podeAprovar: boolean
+  podeRejeitar: boolean
+}
+
+export type StaffPmPedidoLinha = {
+  linhaOrd: number
+  ref: string
+  design: string
+  cor: string
+  qtt: number
+  precoSubmissao: number
+  precoUnitario: number
+  totalLinha: number
+}
+
+export type StaffPmPedidoDetalhe = StaffPmPedidoListaItem & {
+  dataAlteracao: string
+  boano: number | null
+  motivoRejeicao: string | null
+  decididoPor: string | null
+  dataDecisao: string | null
+  podeEditarPrecos: boolean
+  linhas: StaffPmPedidoLinha[]
+}
+
+export type StaffPmAprovarResult = {
+  pedidoId: number
+  numeroInterno: string
+  estadoInterno: string
+  estadoCodigo: string
+  estadoEtiqueta: string
+  bostamp: string
+  obrano: number
+  boano: number
+  ndos: number
+  alreadyIntegrated: boolean
+  alreadyExistsBo: boolean
+}
+
+export type StaffPmRejeitarResult = {
+  pedidoId: number
+  numeroInterno: string
+  estadoInterno: string
+  estadoCodigo: string
+  estadoEtiqueta: string
+  motivoRejeicao: string | null
 }

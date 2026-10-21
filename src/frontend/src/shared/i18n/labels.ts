@@ -12,6 +12,7 @@ export const labels = {
   entrarComMicrosoft: 'Entrar com Microsoft',
   painel: 'Centro de Operações',
   vistaTv: 'Vista TV',
+  pedidosMobile: 'Pedidos Mobile',
   encomendas: 'Encomendas',
   rastreio: 'Rastreio de Artigos',
   encomendasVista: 'Vista das encomendas',

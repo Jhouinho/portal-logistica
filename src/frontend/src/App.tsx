@@ -39,6 +39,8 @@ import { CentroTvPage } from './features/centro/CentroTvPage'
 import { CheckInPage } from './features/checkin/CheckInPage'
 import { EmEntregaPage } from './features/entrega/EmEntregaPage'
 import { ExpedidoPage } from './features/expedido/ExpedidoPage'
+import { PedidosMobileListPage } from './features/pedidos-mobile/PedidosMobileListPage'
+import { PedidosMobileDetailPage } from './features/pedidos-mobile/PedidosMobileDetailPage'
 import { getPortalScrollbarGlobalCss } from './features/centro/portalChrome'
 
 /** Rotas do portal (cookie). A Vista TV fica fora — sem AuthProvider / sem login. */
@@ -62,6 +64,8 @@ function PortalRoutes() {
               <Route path="concluidas" element={<ConcluidasPage />} />
               <Route path="nao-entregues" element={<CortesQuantidadePage />} />
               <Route path="pendentes-picagem" element={<PendentesPicagemHubPage />} />
+              <Route path="pedidos-mobile" element={<PedidosMobileListPage />} />
+              <Route path="pedidos-mobile/:pedidoId" element={<PedidosMobileDetailPage />} />
               <Route path="cortes" element={<Navigate to="/nao-entregues" replace />} />
               <Route path="artigos" element={<Navigate to="/encomendas?vista=referencia" replace />} />
               <Route element={<RequireAdmin />}>
