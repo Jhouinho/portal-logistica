@@ -23,7 +23,9 @@ public static class ClientePedidoEstadoMapper
         return (estadoInterno ?? "").Trim().ToLowerInvariant() switch
         {
             "cancelado" => ("cancelado", "Cancelado", false),
+            "rejeitado" => ("rejeitado", "Rejeitado", false),
             "em_analise" => ("em_analise", "Em análise", false),
+            "em_aprovacao" => ("em_aprovacao", "Em aprovação", false),
             "integrado" => ("aprovado", "Aprovado", false),
             "concluido" => ("concluido", "Concluído", false),
             _ => ("recebido", "Recebido", false)

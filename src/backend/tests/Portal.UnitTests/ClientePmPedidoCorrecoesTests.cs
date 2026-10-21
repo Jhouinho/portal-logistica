@@ -212,6 +212,41 @@ public class ClientePmPedidoCorrecoesTests
         public Task<ClientePmPedidoPersistido?> ObterPorNumeroAsync(
             decimal clNo, decimal clEstab, string numeroInterno, CancellationToken cancellationToken) =>
             Task.FromResult<ClientePmPedidoPersistido?>(null);
+
+        public Task<IReadOnlyList<ClientePmPedidoPersistido>> ListarStaffAsync(
+            string? filtroEstado, int top, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ClientePmPedidoPersistido>>([]);
+
+        public Task<ClientePmPedidoPersistido?> ObterPorIdStaffAsync(
+            long pedidoId, bool incluirLinhas, CancellationToken cancellationToken) =>
+            Task.FromResult<ClientePmPedidoPersistido?>(null);
+
+        public Task<ClientePmIntegracaoResult> TryMarcarIntegradoAsync(
+            long pedidoId,
+            string bostamp,
+            decimal obrano,
+            decimal boano,
+            decimal ndos,
+            string? decididoPor,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, null));
+
+        public Task<ClientePmIntegracaoResult> TryRejeitarAsync(
+            long pedidoId,
+            string? motivo,
+            string? decididoPor,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, null));
+
+        public Task<ClientePmIntegracaoResult> TryAtualizarPrecosOperadorAsync(
+            long pedidoId,
+            IReadOnlyList<(int LinhaOrd, decimal PrecoUnitario)> precos,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, null));
+
+        public Task<ClientePmIntegracaoResult> TryClaimAprovacaoAsync(
+            long pedidoId, CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, null));
     }
 
     private sealed class FakeCatalogo : IClienteCatalogoQuery

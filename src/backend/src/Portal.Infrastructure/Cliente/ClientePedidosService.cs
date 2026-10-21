@@ -159,7 +159,8 @@ public sealed class ClientePedidosService : IClientePedidosService
                 ClienteCorLimits.Normalize(l.Cor),
                 l.Qtt,
                 preco,
-                totalLinha));
+                totalLinha,
+                PrecoSubmissao: preco));
         }
 
         var outcome = await _pmStore.CriarAsync(
@@ -193,19 +194,9 @@ public sealed class ClientePedidosService : IClientePedidosService
         await using var conn = new SqlConnection(_phc.ConnectionString);
         await conn.OpenAsync(cancellationToken);
 
-        var tvp = new DataTable();
-        tvp.Columns.Add("linha_ord", typeof(int));
-        tvp.Columns.Add("ref", typeof(string));
-        tvp.Columns.Add("qtt", typeof(decimal));
-        tvp.Columns.Add("cor", typeof(string));
-        foreach (var l in linhas.OrderBy(x => x.LinhaOrd))
-        {
-            tvp.Rows.Add(
-                l.LinhaOrd,
-                l.Ref.Trim(),
-                l.Qtt,
-                ClienteCorLimits.Normalize(l.Cor));
-        }
+        // Legado: edebito NULL → SP calcula via CL.preco / ST.epvN (não usa preços do browser).
+        var tvp = PedidoMobileLinhaTvp.BuildLegado(
+            linhas.Select(l => (l.LinhaOrd, l.Ref, l.Qtt, l.Cor)));
 
         var p = new DynamicParameters();
         p.Add("@no", no);

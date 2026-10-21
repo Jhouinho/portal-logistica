@@ -106,6 +106,8 @@ public static class DependencyInjection
         services.AddScoped<IClienteCatalogoQuery, ClienteCatalogoQuery>();
         services.AddScoped<IClientePmPedidoStore, ClientePmPedidoStore>();
         services.AddScoped<IClientePedidosService, ClientePedidosService>();
+        services.AddScoped<IStaffPmBo67Gateway, StaffPmBo67Gateway>();
+        services.AddScoped<IStaffPmPedidosService, StaffPmPedidosService>();
 
         services.AddScoped<IUserLookup, UserLookup>();
         services.AddScoped<IPhcAdminUsers, PhcAdminUsers>();
