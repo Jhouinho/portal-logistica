@@ -43,6 +43,132 @@ function Invoke-Npm {
   }
 }
 
+# Ajusta web.config do release: ASPNETCORE_ENVIRONMENT=Production + remove WebDAV
+# (senão IIS pode devolver 405 em PUT/DELETE da API). Idempotente; preserva outros nós.
+function Update-PortalReleaseWebConfig {
+  param([Parameter(Mandatory)][string]$WebConfigPath)
+
+  if (-not (Test-Path -LiteralPath $WebConfigPath)) {
+    throw "web.config não encontrado: $WebConfigPath"
+  }
+
+  $xml = [xml](Get-Content -LiteralPath $WebConfigPath -Raw)
+
+  function New-ChildInNs {
+    param([xml]$Doc, [System.Xml.XmlNode]$Parent, [string]$LocalName)
+    $ns = $Parent.NamespaceURI
+    if ([string]::IsNullOrEmpty($ns)) {
+      return $Doc.CreateElement($LocalName)
+    }
+    return $Doc.CreateElement($LocalName, $ns)
+  }
+
+  function Test-HasNamedRemove {
+    param([System.Xml.XmlNode]$Container, [string]$NameValue)
+    foreach ($n in @($Container.ChildNodes)) {
+      if ($n.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
+      if ($n.LocalName -eq 'remove' -and $n.GetAttribute('name') -eq $NameValue) {
+        return $true
+      }
+    }
+    return $false
+  }
+
+  function Ensure-NamedRemoveFirst {
+    param([xml]$Doc, [System.Xml.XmlNode]$Container, [string]$NameValue)
+    if (Test-HasNamedRemove -Container $Container -NameValue $NameValue) {
+      return $false
+    }
+    $rem = New-ChildInNs -Doc $Doc -Parent $Container -LocalName 'remove'
+    $rem.SetAttribute('name', $NameValue)
+    if ($Container.FirstChild) {
+      [void]$Container.InsertBefore($rem, $Container.FirstChild)
+    }
+    else {
+      [void]$Container.AppendChild($rem)
+    }
+    return $true
+  }
+
+  $sws = $null
+  if ($xml.configuration.location -and $xml.configuration.location.'system.webServer') {
+    $sws = $xml.configuration.location.'system.webServer'
+  }
+  elseif ($xml.configuration.'system.webServer') {
+    $sws = $xml.configuration.'system.webServer'
+  }
+
+  if ($sws) {
+    $handlers = $null
+    foreach ($n in @($sws.ChildNodes)) {
+      if ($n.NodeType -eq [System.Xml.XmlNodeType]::Element -and $n.LocalName -eq 'handlers') {
+        $handlers = $n
+        break
+      }
+    }
+    if (-not $handlers) {
+      Write-Warning (
+        "web.config: seccao handlers ausente em '$WebConfigPath'. " +
+        'A criar handlers apenas com remove name=WebDAV. ' +
+        'Confirme manualmente se o handler aspNetCore existe apos o publish (sem ele a API pode nao arrancar).'
+      )
+      $handlers = New-ChildInNs -Doc $xml -Parent $sws -LocalName 'handlers'
+      $aspForInsert = $null
+      foreach ($n in @($sws.ChildNodes)) {
+        if ($n.NodeType -eq [System.Xml.XmlNodeType]::Element -and $n.LocalName -eq 'aspNetCore') {
+          $aspForInsert = $n
+          break
+        }
+      }
+      if ($aspForInsert) {
+        [void]$sws.InsertBefore($handlers, $aspForInsert)
+      }
+      else {
+        [void]$sws.AppendChild($handlers)
+      }
+    }
+    [void](Ensure-NamedRemoveFirst -Doc $xml -Container $handlers -NameValue 'WebDAV')
+
+    $modules = $null
+    foreach ($n in @($sws.ChildNodes)) {
+      if ($n.NodeType -eq [System.Xml.XmlNodeType]::Element -and $n.LocalName -eq 'modules') {
+        $modules = $n
+        break
+      }
+    }
+    if (-not $modules) {
+      $modules = New-ChildInNs -Doc $xml -Parent $sws -LocalName 'modules'
+      [void]$sws.AppendChild($modules)
+    }
+    [void](Ensure-NamedRemoveFirst -Doc $xml -Container $modules -NameValue 'WebDAVModule')
+  }
+  else {
+    Write-Warning "web.config: system.webServer nao encontrado em '$WebConfigPath' - WebDAV nao configurado."
+  }
+
+  $asp = $null
+  if ($xml.configuration.location -and $xml.configuration.location.'system.webServer') {
+    $asp = $xml.configuration.location.'system.webServer'.aspNetCore
+  }
+  if (-not $asp -and $xml.configuration.'system.webServer') {
+    $asp = $xml.configuration.'system.webServer'.aspNetCore
+  }
+  if ($asp) {
+    $asp.SetAttribute('stdoutLogEnabled', 'false')
+    $existing = $asp.environmentVariables
+    if ($existing) { [void]$asp.RemoveChild($existing) }
+    $envVars = New-ChildInNs -Doc $xml -Parent $asp -LocalName 'environmentVariables'
+    $env = New-ChildInNs -Doc $xml -Parent $envVars -LocalName 'environmentVariable'
+    $env.SetAttribute('name', 'ASPNETCORE_ENVIRONMENT')
+    $env.SetAttribute('value', 'Production')
+    [void]$envVars.AppendChild($env)
+    [void]$asp.AppendChild($envVars)
+  }
+
+  # Gravar sempre (WebDAV e/ou env), mesmo sem nó aspNetCore.
+  $xml.Save($WebConfigPath)
+}
+
 Write-Host "Repo: $repoRoot"
 Write-Host "Out:  $OutDir"
 
@@ -77,24 +203,9 @@ $www = Join-Path $OutDir 'wwwroot'
 New-Item -ItemType Directory -Force -Path $www | Out-Null
 Copy-Item -Path (Join-Path $frontend 'dist\*') -Destination $www -Recurse -Force
 
-# Garantir ASPNETCORE_ENVIRONMENT=Production no web.config
 $wcPath = Join-Path $OutDir 'web.config'
 if (Test-Path $wcPath) {
-  $xml = [xml](Get-Content -LiteralPath $wcPath)
-  $asp = $xml.configuration.location.'system.webServer'.aspNetCore
-  if (-not $asp) { $asp = $xml.configuration.'system.webServer'.aspNetCore }
-  if ($asp) {
-    $asp.SetAttribute('stdoutLogEnabled', 'false')
-    $existing = $asp.environmentVariables
-    if ($existing) { [void]$asp.RemoveChild($existing) }
-    $envVars = $xml.CreateElement('environmentVariables')
-    $env = $xml.CreateElement('environmentVariable')
-    $env.SetAttribute('name', 'ASPNETCORE_ENVIRONMENT')
-    $env.SetAttribute('value', 'Production')
-    [void]$envVars.AppendChild($env)
-    [void]$asp.AppendChild($envVars)
-    $xml.Save($wcPath)
-  }
+  Update-PortalReleaseWebConfig -WebConfigPath $wcPath
 }
 
 # Template de produção (sem password)
