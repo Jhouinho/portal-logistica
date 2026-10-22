@@ -89,7 +89,11 @@ try
     app.UseCors("Spa");
     // SPA estática (IIS / publish com wwwroot) — mesmo origin que /api e /hubs (cookies).
     app.UseDefaultFiles();
-    app.UseStaticFiles();
+    var staticTypes = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+    // Certificado UAT para instalar confiança no iOS Safari (câmara QR).
+    staticTypes.Mappings[".cer"] = "application/pkix-cert";
+    staticTypes.Mappings[".crt"] = "application/x-x509-ca-cert";
+    app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticTypes });
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();

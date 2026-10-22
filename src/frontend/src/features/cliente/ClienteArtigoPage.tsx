@@ -1,10 +1,11 @@
-import { FormEvent, useRef, useState } from 'react'
+import { FormEvent, useCallback, useRef, useState } from 'react'
 import { Box, Stack, Typography } from '@mui/material'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
 import { useNavigate } from 'react-router-dom'
 import { clienteApi, clienteArtigoImagemUrl, type ClienteArtigo } from './clienteApi'
 import { useClienteAuth } from './ClienteAuthContext'
 import { loadCarrinho, saveCarrinho, upsertLinha } from './carrinhoStorage'
+import { ClienteQrScanner, primeCameraForQr } from './ClienteQrScanner'
 import {
   ClienteAlert,
   ClientePageTitle,
@@ -22,6 +23,7 @@ export function ClienteArtigoPage() {
   const navigate = useNavigate()
   const refInput = useRef<HTMLInputElement>(null)
   const [modo, setModo] = useState<'escolha' | 'manual' | 'resultado'>('escolha')
+  const [scannerOpen, setScannerOpen] = useState(false)
   const [ref, setRef] = useState('')
   const [artigo, setArtigo] = useState<ClienteArtigo | null>(null)
   const [cor, setCor] = useState('')
@@ -30,7 +32,7 @@ export function ClienteArtigoPage() {
   const [busy, setBusy] = useState(false)
   const [imgFalhou, setImgFalhou] = useState(false)
 
-  async function procurarRef(referencia: string) {
+  const procurarRef = useCallback(async (referencia: string) => {
     setErro(null)
     setArtigo(null)
     setImgFalhou(false)
@@ -48,7 +50,7 @@ export function ClienteArtigoPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [])
 
   async function onProcurar(e: FormEvent) {
     e.preventDefault()
@@ -83,14 +85,32 @@ export function ClienteArtigoPage() {
 
       {erro && <ClienteAlert severity="error">{erro}</ClienteAlert>}
 
+      <ClienteQrScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onDecoded={(referencia) => {
+          setScannerOpen(false)
+          setRef(referencia)
+          void procurarRef(referencia)
+        }}
+      />
+
       {modo === 'escolha' && (
         <Stack spacing={1.5}>
           <ClientePrimaryButton
             startIcon={<QrCodeScannerIcon />}
+            disabled={busy}
             onClick={() => {
-              setModo('manual')
               setErro(null)
-              window.setTimeout(() => refInput.current?.focus(), 50)
+              void (async () => {
+                try {
+                  // iOS Safari: pedir câmara no mesmo gesto do toque
+                  await primeCameraForQr()
+                } catch {
+                  // Continua para o overlay — fallback «Fotografar código»
+                }
+                setScannerOpen(true)
+              })()
             }}
           >
             Ler QR Code
@@ -105,7 +125,7 @@ export function ClienteArtigoPage() {
             Introduzir referência
           </ClienteSecondaryButton>
           <Typography variant="caption" color="text.secondary" textAlign="center">
-            Com o leitor QR do telemóvel, a referência é colada no campo seguinte.
+            Aponte a câmara ao QR Code do artigo — a referência é lida automaticamente.
           </Typography>
         </Stack>
       )}
