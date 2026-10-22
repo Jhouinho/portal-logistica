@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ElementType, type ReactNode } from 'react'
 import {
   Alert,
   Box,
@@ -118,7 +118,10 @@ export function ClienteStepDots({ step, total = 3 }: { step: number; total?: num
   )
 }
 
-export function ClientePrimaryButton(props: ButtonProps) {
+/** Genérico alinhado ao Button MUI: permite `component={RouterLink}` + `to` tipados. */
+export function ClientePrimaryButton<C extends ElementType = 'button'>(
+  props: ButtonProps<C, { component?: C }>,
+) {
   return (
     <Button
       variant="contained"
@@ -136,7 +139,9 @@ export function ClientePrimaryButton(props: ButtonProps) {
   )
 }
 
-export function ClienteSecondaryButton(props: ButtonProps) {
+export function ClienteSecondaryButton<C extends ElementType = 'button'>(
+  props: ButtonProps<C, { component?: C }>,
+) {
   return (
     <Button
       variant="outlined"
