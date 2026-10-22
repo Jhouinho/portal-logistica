@@ -16,9 +16,10 @@ export default defineConfig({
         enabled: false,
       },
       manifest: {
-        name: 'Portal Logística — Liliana & Seródio',
-        short_name: 'Portal Logística',
-        start_url: '/',
+        name: 'Portal Mobile — Liliana & Seródio',
+        short_name: 'Portal Mobile',
+        start_url: '/cliente/login',
+        scope: '/cliente/',
         display: 'standalone',
         theme_color: '#3DB2FF',
         background_color: '#0B1220',
