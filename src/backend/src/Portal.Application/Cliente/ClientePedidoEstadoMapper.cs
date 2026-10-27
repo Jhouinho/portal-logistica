@@ -2,7 +2,8 @@ namespace Portal.Application.Cliente;
 
 /// <summary>
 /// Mapeamento estado interno / legado → apresentação ao cliente.
-/// «Aprovado» só após dossier PHC confirmado (EstadoInterno integrado) — Fase 1 não o produz.
+/// Após dossier PHC ligado: <c>integrado</c> (legado) e <c>em_separacao</c> apresentam-se
+/// como «Em separação»; progresso seguinte: pronto_levantamento → concluido.
 /// </summary>
 public static class ClientePedidoEstadoMapper
 {
@@ -26,7 +27,9 @@ public static class ClientePedidoEstadoMapper
             "rejeitado" => ("rejeitado", "Rejeitado", false),
             "em_analise" => ("em_analise", "Em análise", false),
             "em_aprovacao" => ("em_aprovacao", "Em aprovação", false),
-            "integrado" => ("aprovado", "Aprovado", false),
+            "integrado" => ("em_separacao", "Em separação", false),
+            "em_separacao" => ("em_separacao", "Em separação", false),
+            "pronto_levantamento" => ("pronto_levantamento", "Pronto para levantamento", false),
             "concluido" => ("concluido", "Concluído", false),
             _ => ("recebido", "Recebido", false)
         };

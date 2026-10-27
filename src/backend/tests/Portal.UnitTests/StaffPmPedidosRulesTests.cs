@@ -39,6 +39,17 @@ public class StaffPmPedidosRulesTests
     }
 
     [Fact]
+    public void MapInterno_estados_operacionais()
+    {
+        Assert.Equal("Em separação", ClientePedidoEstadoMapper.MapInterno("em_separacao").Etiqueta);
+        Assert.Equal("Em separação", ClientePedidoEstadoMapper.MapInterno("integrado").Etiqueta);
+        Assert.Equal(
+            "Pronto para levantamento",
+            ClientePedidoEstadoMapper.MapInterno("pronto_levantamento").Etiqueta);
+        Assert.Equal("Concluído", ClientePedidoEstadoMapper.MapInterno("concluido").Etiqueta);
+    }
+
+    [Fact]
     public void NeedsReconcile_quando_bostamp_sem_estado_integrado()
     {
         Assert.True(StaffPmPedidoRules.NeedsReconcile("recebido", "BO123"));

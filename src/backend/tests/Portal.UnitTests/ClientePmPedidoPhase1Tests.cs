@@ -67,10 +67,13 @@ public class ClientePmPedidoPhase1Tests
     }
 
     [Fact]
-    public void MapInterno_integrado_apresenta_aprovado()
+    public void MapInterno_integrado_legado_apresenta_em_separacao()
     {
+        // Circuito operacional: «integrado» (legado) e «em_separacao» apresentam-se
+        // como Em separação ao cliente — ver StaffPmPedidoRules.IsEmSeparacao / filtro API.
         var m = ClientePedidoEstadoMapper.MapInterno("integrado");
-        Assert.Equal("aprovado", m.Codigo);
+        Assert.Equal("em_separacao", m.Codigo);
+        Assert.Equal("Em separação", m.Etiqueta);
         Assert.False(m.PodeCancelar);
     }
 

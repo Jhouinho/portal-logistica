@@ -8,6 +8,10 @@ public static class StaffPmPedidoRules
     /// <summary>Claim atómico antes da criação do dossier PHC; bloqueia rejeição e preços.</summary>
     public const string EstadoEmAprovacao = "em_aprovacao";
     public const string EstadoIntegrado = "integrado";
+    /// <summary>Pós-aprovação: em separação no armazém (valor preferido após criar BO).</summary>
+    public const string EstadoEmSeparacao = "em_separacao";
+    public const string EstadoProntoLevantamento = "pronto_levantamento";
+    public const string EstadoConcluido = "concluido";
     public const string EstadoRejeitado = "rejeitado";
     public const string EstadoCancelado = "cancelado";
 
@@ -33,11 +37,25 @@ public static class StaffPmPedidoRules
     public static bool CanContinueBo67(string? estadoInterno, string? bostamp) =>
         IsEmAprovacao(estadoInterno) && string.IsNullOrWhiteSpace(bostamp);
 
-    public static bool IsIntegradoCompleto(string? estadoInterno, string? bostamp) =>
-        NormalizeEstado(estadoInterno) == EstadoIntegrado
-        && !string.IsNullOrWhiteSpace(bostamp);
+    /// <summary>
+    /// Dossier PHC ligado e pedido no circuito operacional
+    /// (legado <c>integrado</c> ou estados de separação / levantamento / concluído).
+    /// </summary>
+    public static bool IsIntegradoCompleto(string? estadoInterno, string? bostamp)
+    {
+        if (string.IsNullOrWhiteSpace(bostamp))
+            return false;
+        var e = NormalizeEstado(estadoInterno);
+        return e is EstadoIntegrado
+            or EstadoEmSeparacao
+            or EstadoProntoLevantamento
+            or EstadoConcluido;
+    }
 
-    /// <summary>BO já referenciado no pedido mas estado ainda não é integrado (crash / timeout).</summary>
+    public static bool IsEmSeparacao(string? estadoInterno) =>
+        NormalizeEstado(estadoInterno) is EstadoEmSeparacao or EstadoIntegrado;
+
+    /// <summary>BO já referenciado no pedido mas estado ainda não é pós-aprovação (crash / timeout).</summary>
     public static bool NeedsReconcile(string? estadoInterno, string? bostamp)
     {
         if (string.IsNullOrWhiteSpace(bostamp))
