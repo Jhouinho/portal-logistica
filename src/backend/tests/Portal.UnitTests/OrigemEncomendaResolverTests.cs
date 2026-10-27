@@ -92,6 +92,31 @@ public sealed class OrigemEncomendaResolverTests
     }
 
     [Fact]
+    public void Empate_obrano_desempate_Ordinal_BIN_e_case_sensitive_sem_normalizar_stamp()
+    {
+        // CompareOrdinal / Latin1_General_BIN: 'z' (122) > 'Z' (90) → vence "stamp-z".
+        // Collation CI_AI poderia empatar; não usamos RTRIM/Trim no BoStamp.
+        var hop1 = new[]
+        {
+            new OrigemEncomendaResolver.Candidato(
+                7, "stamp-Z", new DateTime(2026, 4, 1), "10:00:00"),
+            new OrigemEncomendaResolver.Candidato(
+                7, "stamp-z", new DateTime(2026, 4, 2), "11:00:00"),
+            new OrigemEncomendaResolver.Candidato(
+                7, "stamp-z ", new DateTime(2026, 4, 3), "12:00:00")
+        };
+
+        var r = OrigemEncomendaResolver.Resolver(
+            hop1, Array.Empty<OrigemEncomendaResolver.Candidato>());
+
+        Assert.NotNull(r);
+        Assert.Equal(7, r!.Obrano);
+        // "stamp-z " > "stamp-z" em Ordinal (espaço extra); sem RTRIM.
+        Assert.Equal(new DateTime(2026, 4, 3), r.Ousrdata);
+        Assert.Equal("12:00:00", r.Ousrhora);
+    }
+
+    [Fact]
     public void Sem_candidatos_devolve_null_sem_inventar_datas()
     {
         var r = OrigemEncomendaResolver.Resolver(

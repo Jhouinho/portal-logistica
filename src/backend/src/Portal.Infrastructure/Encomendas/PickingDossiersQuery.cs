@@ -160,24 +160,20 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
         p.Add("offset", offset);
         p.Add("pageSize", pageSize);
 
-        const string fromSql = """
+        // Fragmentos de origem: PickingDossiersOrigemSql (testes de contrato).
+        const string fromSql =
+            """
             FROM (
                 SELECT
                     bo.bostamp,
                     bo.obrano,
                     -- Cadeia documental: Encomenda (1) ← Picking (66) ← Separação (65).
-                    -- Origem atómica (espelha OrigemEncomendaResolver): hop1 se existir BO,
-                    -- senão hop2; dentro do hop MAX(obrano) + desempate bostamp.
-                    -- ousrdata/ousrhora vêm do mesmo BO que obrano_origem (nunca 66/65).
-                    COALESCE(origem_h1.obrano, origem_h2.obrano) AS obrano_origem,
-                    CASE
-                        WHEN origem_h1.obrano IS NOT NULL THEN origem_h1.ousrdata
-                        ELSE origem_h2.ousrdata
-                    END AS ousrdata_origem,
-                    CASE
-                        WHEN origem_h1.obrano IS NOT NULL THEN origem_h1.ousrhora
-                        ELSE origem_h2.ousrhora
-                    END AS ousrhora_origem,
+                    -- Origem atómica (PickingDossiersOrigemSql / OrigemEncomendaResolver).
+                    -- ousrdata/ousrhora do mesmo BO que obrano_origem (nunca 66/65).
+            """
+            + PickingDossiersOrigemSql.SelectCamposOrigem
+            + """
+                    ,
                     CASE
                         WHEN bo.ndos = @seriePickingDoc THEN bo.obrano
                         ELSE (
@@ -238,36 +234,10 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
                     ON bo2.bo2stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
                 LEFT JOIN dbo.bo3 bo3 WITH (NOLOCK)
                     ON bo3.bo3stamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
-                OUTER APPLY (
-                    SELECT TOP (1)
-                        o.obrano,
-                        o.ousrdata,
-                        CONVERT(varchar(12), o.ousrhora) AS ousrhora
-                    FROM dbo.bi di WITH (NOLOCK)
-                    INNER JOIN dbo.bi oi WITH (NOLOCK)
-                        ON oi.bistamp COLLATE DATABASE_DEFAULT = di.obistamp COLLATE DATABASE_DEFAULT
-                    INNER JOIN dbo.bo o WITH (NOLOCK)
-                        ON o.bostamp COLLATE DATABASE_DEFAULT = oi.bostamp COLLATE DATABASE_DEFAULT
-                    WHERE di.bostamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
-                      AND o.ndos = @serieEncomendaDoc
-                    ORDER BY o.obrano DESC, o.bostamp DESC
-                ) origem_h1
-                OUTER APPLY (
-                    SELECT TOP (1)
-                        o1.obrano,
-                        o1.ousrdata,
-                        CONVERT(varchar(12), o1.ousrhora) AS ousrhora
-                    FROM dbo.bi di WITH (NOLOCK)
-                    INNER JOIN dbo.bi mid WITH (NOLOCK)
-                        ON mid.bistamp COLLATE DATABASE_DEFAULT = di.obistamp COLLATE DATABASE_DEFAULT
-                    INNER JOIN dbo.bi oi WITH (NOLOCK)
-                        ON oi.bistamp COLLATE DATABASE_DEFAULT = mid.obistamp COLLATE DATABASE_DEFAULT
-                    INNER JOIN dbo.bo o1 WITH (NOLOCK)
-                        ON o1.bostamp COLLATE DATABASE_DEFAULT = oi.bostamp COLLATE DATABASE_DEFAULT
-                    WHERE di.bostamp COLLATE DATABASE_DEFAULT = bo.bostamp COLLATE DATABASE_DEFAULT
-                      AND o1.ndos = @serieEncomendaDoc
-                    ORDER BY o1.obrano DESC, o1.bostamp DESC
-                ) origem_h2
+            """
+            + PickingDossiersOrigemSql.OuterApplyHop1_66para1
+            + PickingDossiersOrigemSql.OuterApplyHop2_65para66para1
+            + """
                 WHERE bo.ndos = @seriePickingNdos
                 GROUP BY
                     bo.bostamp,
@@ -291,12 +261,9 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
                     bo3.u_chkindt,
                     bo3.u_modExp,
                     bo2.u_mEntrega,
-                    origem_h1.obrano,
-                    origem_h1.ousrdata,
-                    origem_h1.ousrhora,
-                    origem_h2.obrano,
-                    origem_h2.ousrdata,
-                    origem_h2.ousrhora
+            """
+            + PickingDossiersOrigemSql.GroupByCamposOrigem
+            + """
             ) v
             """;
 

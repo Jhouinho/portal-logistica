@@ -1,10 +1,13 @@
 namespace Portal.Application.Encomendas;
 
 /// <summary>
-/// Critério de seleção da encomenda original (ndos=1) espelhado em
-/// <c>PickingDossiersQuery</c>: preferir hop1 (66→1) se existir candidato;
-/// senão hop2 (65→66→1). Dentro do hop, <c>MAX(obrano)</c> e desempate
-/// <c>bostamp</c> DESC — data e hora vêm sempre do mesmo BO.
+/// Critério de seleção da encomenda original (ndos=1) espelhado na SQL de
+/// <c>PickingDossiersQuery</c> / <c>PickingDossiersOrigemSql</c>:
+/// preferir hop1 (66→1) se existir candidato; senão hop2 (65→66→1).
+/// Dentro do hop: maior <c>obrano</c>; empate → maior <c>bostamp</c> por
+/// <see cref="string.CompareOrdinal"/> (equivalente a
+/// <c>ORDER BY obrano DESC, bostamp COLLATE Latin1_General_BIN DESC</c>,
+/// sem normalizar o stamp). Data e hora vêm sempre do mesmo BO.
 /// </summary>
 public static class OrigemEncomendaResolver
 {
