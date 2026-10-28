@@ -46,7 +46,8 @@ export function ClienteArtigoPage() {
       setModo('resultado')
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Artigo não encontrado.')
-      setModo('manual')
+      // Voltar à escolha para poder ler outro QR (não ficar só no formulário manual).
+      setModo('escolha')
     } finally {
       setBusy(false)
     }
@@ -131,25 +132,46 @@ export function ClienteArtigoPage() {
       )}
 
       {(modo === 'manual' || modo === 'resultado') && (
-        <Box component="form" onSubmit={onProcurar}>
-          <Stack direction="row" spacing={1} alignItems="flex-start">
-            <ClienteTextField
-              label="Referência"
-              value={ref}
-              onChange={(e) => setRef(e.target.value)}
-              required
-              inputRef={refInput}
-              inputProps={{ inputMode: 'text', autoCapitalize: 'characters' }}
-            />
-            <ClientePrimaryButton
-              type="submit"
+        <Stack spacing={1.5}>
+          <Box component="form" onSubmit={onProcurar}>
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <ClienteTextField
+                label="Referência"
+                value={ref}
+                onChange={(e) => setRef(e.target.value)}
+                required
+                inputRef={refInput}
+                inputProps={{ inputMode: 'text', autoCapitalize: 'characters' }}
+              />
+              <ClientePrimaryButton
+                type="submit"
+                disabled={busy}
+                sx={{ width: 'auto', minWidth: 72, px: 2, flexShrink: 0 }}
+              >
+                OK
+              </ClientePrimaryButton>
+            </Stack>
+          </Box>
+          {modo === 'manual' && (
+            <ClienteSecondaryButton
+              startIcon={<QrCodeScannerIcon />}
               disabled={busy}
-              sx={{ width: 'auto', minWidth: 72, px: 2, flexShrink: 0 }}
+              onClick={() => {
+                setErro(null)
+                void (async () => {
+                  try {
+                    await primeCameraForQr()
+                  } catch {
+                    /* overlay com fallback «Fotografar código» */
+                  }
+                  setScannerOpen(true)
+                })()
+              }}
             >
-              OK
-            </ClientePrimaryButton>
-          </Stack>
-        </Box>
+              Ler QR Code
+            </ClienteSecondaryButton>
+          )}
+        </Stack>
       )}
 
       {artigo && modo === 'resultado' && (
