@@ -19,3 +19,16 @@ releases/
 
 dev-dist/
 **/dev-dist/
+
+# Backups e artefactos locais de SQL
+sql/backups/
+
+# Outputs locais de publicação
+src/backend/_publish_*/
+
+# Artefactos temporários de validação frontend
+src/frontend/.validation-tmp/
+
+# QR gerados para testes e instalações locais
+tools/*-qr.png
+tools/*-qr.html
