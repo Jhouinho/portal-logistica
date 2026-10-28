@@ -1154,6 +1154,27 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ linhas }),
     }),
+  /** Substitui linhas (qtt/preço/add/remove) enquanto o pedido está pendente. */
+  staffPmGuardarLinhas: (
+    pedidoId: number,
+    linhas: {
+      linhaOrd: number | null
+      ref: string
+      design: string
+      cor: string
+      qtt: number
+      precoUnitario: number
+    }[],
+  ) =>
+    request<StaffPmPedidoDetalhe>(`/api/v1/staff/pedidos-mobile/${pedidoId}/linhas`, {
+      method: 'PUT',
+      body: JSON.stringify({ linhas }),
+    }),
+  staffPmOperacao: (pedidoId: number, acao: 'pronto_levantamento' | 'concluir') =>
+    request<StaffPmOperacaoResult>(`/api/v1/staff/pedidos-mobile/${pedidoId}/operacao`, {
+      method: 'POST',
+      body: JSON.stringify({ acao }),
+    }),
 }
 
 export type StaffPmPedidoListaItem = {
@@ -1172,6 +1193,8 @@ export type StaffPmPedidoListaItem = {
   ndos: number | null
   podeAprovar: boolean
   podeRejeitar: boolean
+  podeMarcarProntoLevantamento: boolean
+  podeMarcarConcluido: boolean
 }
 
 export type StaffPmPedidoLinha = {
@@ -1216,4 +1239,12 @@ export type StaffPmRejeitarResult = {
   estadoCodigo: string
   estadoEtiqueta: string
   motivoRejeicao: string | null
+}
+
+export type StaffPmOperacaoResult = {
+  pedidoId: number
+  numeroInterno: string
+  estadoInterno: string
+  estadoCodigo: string
+  estadoEtiqueta: string
 }

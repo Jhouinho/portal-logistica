@@ -23,6 +23,7 @@ import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { api, type StaffPmPedidoDetalhe } from '../../shared/api'
 import { labels } from '../../shared/i18n/labels'
 import { portalPageScrollSx, portalPanelSx, portalPrimaryCtaSx } from '../centro/portalChrome'
+import { OperadorPedidoDetailView } from '../operador/OperadorPedidoDetailView'
 
 function fmtData(iso: string | null | undefined): string {
   if (!iso) return '—'
@@ -45,10 +46,17 @@ function parsePreco(raw: string): number | null {
   return n
 }
 
-export function PedidosMobileDetailPage() {
+type Props = {
+  /** Prefixo da lista (Logística: /pedidos-mobile; Operador: /operador/pedidos-mobile). */
+  listBasePath?: string
+}
+
+export function PedidosMobileDetailPage({ listBasePath = '/pedidos-mobile' }: Props) {
   const { pedidoId: pedidoIdParam } = useParams()
   const pedidoId = Number(pedidoIdParam)
   const navigate = useNavigate()
+  const listPath = listBasePath.replace(/\/$/, '') || '/pedidos-mobile'
+  const isOperador = listPath.startsWith('/operador')
   const [item, setItem] = useState<StaffPmPedidoDetalhe | null>(null)
   const [precosEdit, setPrecosEdit] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
@@ -184,6 +192,26 @@ export function PedidosMobileDetailPage() {
     }
   }
 
+  async function avancarOperacao(acao: 'pronto_levantamento' | 'concluir') {
+    if (actionLock.current) return
+    if (acao === 'pronto_levantamento' && !item?.podeMarcarProntoLevantamento) return
+    if (acao === 'concluir' && !item?.podeMarcarConcluido) return
+    actionLock.current = true
+    setBusy(true)
+    setErro(null)
+    setSucesso(null)
+    try {
+      const r = await api.staffPmOperacao(pedidoId, acao)
+      setSucesso(`Estado actualizado: ${r.estadoEtiqueta}.`)
+      await carregar()
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : labels.erroGenerico)
+    } finally {
+      setBusy(false)
+      actionLock.current = false
+    }
+  }
+
   if (loading) {
     return (
       <Box sx={portalPageScrollSx} display="flex" justifyContent="center" py={6}>
@@ -198,15 +226,66 @@ export function PedidosMobileDetailPage() {
         <Alert severity="error" sx={{ mb: 2 }}>
           {erro ?? 'Pedido não encontrado.'}
         </Alert>
-        <Button component={RouterLink} to="/pedidos-mobile" startIcon={<ArrowBackIcon />}>
+        <Button component={RouterLink} to={listPath} startIcon={<ArrowBackIcon />}>
           Voltar à lista
         </Button>
       </Box>
     )
   }
 
-  const listPath = '/pedidos-mobile'
   const totalMostrado = item.podeEditarPrecos ? totaisLocais.pedido : item.etotaldeb
+
+  if (isOperador) {
+    return (
+      <>
+        <OperadorPedidoDetailView
+          item={item}
+          busy={busy}
+          erro={erro}
+          sucesso={sucesso}
+          onClearErro={() => setErro(null)}
+          onClearSucesso={() => setSucesso(null)}
+          onSaved={(d) => {
+            setItem(d)
+            syncPrecos(d)
+            setSucesso('Alterações gravadas.')
+          }}
+          onAprovar={() => void aprovar()}
+          onRejeitarOpen={() => setRejeitarAberto(true)}
+          onOperacao={(acao) => void avancarOperacao(acao)}
+          onError={setErro}
+          onBusy={setBusy}
+        />
+        <Dialog open={rejeitarAberto} onClose={() => !busy && setRejeitarAberto(false)} fullWidth maxWidth="sm">
+          <Box component="form" onSubmit={(e) => void rejeitar(e)}>
+            <DialogTitle>Rejeitar pedido {item.numeroInterno}</DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Não será criado dossier PHC. O pedido ficará bloqueado para aprovação.
+              </Typography>
+              <TextField
+                label="Motivo (opcional)"
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value.slice(0, 500))}
+                fullWidth
+                multiline
+                minRows={2}
+                autoFocus
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setRejeitarAberto(false)} disabled={busy}>
+                Cancelar
+              </Button>
+              <Button type="submit" color="error" variant="contained" disabled={busy}>
+                Confirmar rejeição
+              </Button>
+            </DialogActions>
+          </Box>
+        </Dialog>
+      </>
+    )
+  }
 
   return (
     <Box sx={portalPageScrollSx}>
@@ -219,9 +298,15 @@ export function PedidosMobileDetailPage() {
         Pedidos Mobile
       </Button>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" mb={2} gap={1}>
-        <Box>
-          <Typography variant="h5" fontWeight={700}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        mb={2}
+        gap={1}
+      >
+        <Box minWidth={0}>
+          <Typography variant="h5" fontWeight={800}>
             {item.numeroInterno}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -351,6 +436,28 @@ export function PedidosMobileDetailPage() {
             onClick={() => setRejeitarAberto(true)}
           >
             Rejeitar
+          </Button>
+        )}
+        {item.podeMarcarProntoLevantamento && (
+          <Button
+            variant="contained"
+            color="info"
+            disabled={busy}
+            onClick={() => void avancarOperacao('pronto_levantamento')}
+            sx={portalPrimaryCtaSx}
+          >
+            Pronto para levantamento
+          </Button>
+        )}
+        {item.podeMarcarConcluido && (
+          <Button
+            variant="contained"
+            color="success"
+            disabled={busy}
+            onClick={() => void avancarOperacao('concluir')}
+            sx={portalPrimaryCtaSx}
+          >
+            Marcar concluído
           </Button>
         )}
         <Button variant="text" onClick={() => navigate(listPath)}>
