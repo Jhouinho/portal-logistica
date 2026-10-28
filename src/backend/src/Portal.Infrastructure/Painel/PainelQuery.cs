@@ -1,5 +1,6 @@
 using Dapper;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Portal.Application.Painel;
 using Portal.Infrastructure.Options;
@@ -9,10 +10,12 @@ namespace Portal.Infrastructure.Painel;
 public sealed class PainelQuery : IPainelQuery
 {
     private readonly PhcOptions _options;
+    private readonly ILogger<PainelQuery> _logger;
 
-    public PainelQuery(IOptions<PhcOptions> options)
+    public PainelQuery(IOptions<PhcOptions> options, ILogger<PainelQuery> logger)
     {
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<PainelEncomendaAggRow>> ListarAbertasParaKpisAsync(
@@ -492,51 +495,138 @@ public sealed class PainelQuery : IPainelQuery
                 UNION ALL
                 SELECT * FROM dos_agg
             )
+            -- Progresso Kapps (qty/picked/pending) sem u_Kapps_* — evita 500 se portal_app
+            -- ainda não tiver SELECT em DossierLin/Terminals (ver sql/097_grant_kapps_portal_app.sql).
             SELECT
                 b.BoStamp,
                 b.Origem,
                 b.Qty,
                 b.Picked,
                 b.Pending,
-                CASE WHEN ISNULL(a.TerminalID, 0) > 0 THEN a.TerminalID ELSE NULL END AS ActiveTerminalId,
-                CASE
-                    WHEN ISNULL(a.TerminalID, 0) > 0 THEN
-                        CASE
-                            WHEN LTRIM(RTRIM(ISNULL(a.TerminalDescription, ''))) <> ''
-                                THEN LTRIM(RTRIM(a.TerminalDescription))
-                            ELSE CONCAT('Terminal ', CONVERT(varchar(20), a.TerminalID))
-                        END
-                    ELSE NULL
-                END AS ActiveTerminalLabel,
-                NULLIF(LTRIM(RTRIM(ISNULL(a.UserID, ''))), '') AS ActiveUserId
-            FROM base b
-            OUTER APPLY (
-                SELECT TOP (1)
-                    d.TerminalID,
-                    LTRIM(RTRIM(d.UserID)) AS UserID,
-                    LTRIM(RTRIM(t.TerminalDescription)) AS TerminalDescription
-                FROM dbo.u_Kapps_DossierLin d WITH (NOLOCK)
-                LEFT JOIN dbo.u_Kapps_Terminals t WITH (NOLOCK)
-                    ON LTRIM(RTRIM(t.TerminalID)) = CONVERT(varchar(20), d.TerminalID)
-                WHERE b.ActivityKey IS NOT NULL
-                  AND d.StampBo COLLATE DATABASE_DEFAULT = b.ActivityKey COLLATE DATABASE_DEFAULT
-                  AND (
-                    ISNULL(d.TerminalID, 0) <> 0
-                    OR LTRIM(RTRIM(ISNULL(d.UserID, ''))) <> ''
-                  )
-                ORDER BY
-                    CASE WHEN ISNULL(d.TerminalID, 0) <> 0 THEN 0 ELSE 1 END,
-                    d.MovDate DESC,
-                    d.MovTime DESC
-            ) a;
+                CAST(NULL AS int) AS ActiveTerminalId,
+                CAST(NULL AS nvarchar(200)) AS ActiveTerminalLabel,
+                CAST(NULL AS nvarchar(100)) AS ActiveUserId,
+                b.ActivityKey
+            FROM base b;
             """;
 
-        var rows = await connection.QueryAsync<TvKappsResumoRow>(
+        var rows = (await connection.QueryAsync<TvKappsResumoRowWithKey>(
             new CommandDefinition(
                 sql,
                 new { serieEncomendasNdos, seriePickingNdos },
-                cancellationToken: cancellationToken));
+                cancellationToken: cancellationToken))).ToList();
 
-        return rows.ToList();
+        await TryEnrichActiveTerminalAsync(connection, rows, cancellationToken);
+
+        return rows.Select(r => new TvKappsResumoRow
+        {
+            BoStamp = r.BoStamp,
+            Origem = r.Origem,
+            Qty = r.Qty,
+            Picked = r.Picked,
+            Pending = r.Pending,
+            ActiveTerminalId = r.ActiveTerminalId,
+            ActiveTerminalLabel = r.ActiveTerminalLabel,
+            ActiveUserId = r.ActiveUserId,
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Enriquece operador/terminal Kapps. Se faltar GRANT (SQL 229), mantém progresso sem falhar o Centro/TV.
+    /// </summary>
+    private async Task TryEnrichActiveTerminalAsync(
+        SqlConnection connection,
+        List<TvKappsResumoRowWithKey> rows,
+        CancellationToken cancellationToken)
+    {
+        var keys = rows
+            .Select(r => r.ActivityKey)
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (keys.Length == 0) return;
+
+        const string sql = """
+            SELECT
+                LTRIM(RTRIM(x.ActivityKey)) AS ActivityKey,
+                CASE WHEN ISNULL(x.TerminalID, 0) > 0 THEN x.TerminalID ELSE NULL END AS ActiveTerminalId,
+                CASE
+                    WHEN ISNULL(x.TerminalID, 0) > 0 THEN
+                        CASE
+                            WHEN LTRIM(RTRIM(ISNULL(x.TerminalDescription, ''))) <> ''
+                                THEN LTRIM(RTRIM(x.TerminalDescription))
+                            ELSE CONCAT('Terminal ', CONVERT(varchar(20), x.TerminalID))
+                        END
+                    ELSE NULL
+                END AS ActiveTerminalLabel,
+                NULLIF(LTRIM(RTRIM(ISNULL(x.UserID, ''))), '') AS ActiveUserId
+            FROM (
+                SELECT
+                    k.ActivityKey,
+                    d.TerminalID,
+                    LTRIM(RTRIM(d.UserID)) AS UserID,
+                    LTRIM(RTRIM(t.TerminalDescription)) AS TerminalDescription,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY k.ActivityKey
+                        ORDER BY
+                            CASE WHEN ISNULL(d.TerminalID, 0) <> 0 THEN 0 ELSE 1 END,
+                            d.MovDate DESC,
+                            d.MovTime DESC
+                    ) AS rn
+                FROM (SELECT DISTINCT CAST(value AS varchar(25)) AS ActivityKey FROM STRING_SPLIT(@keysCsv, '|')) k
+                INNER JOIN dbo.u_Kapps_DossierLin d WITH (NOLOCK)
+                    ON d.StampBo COLLATE DATABASE_DEFAULT = k.ActivityKey COLLATE DATABASE_DEFAULT
+                LEFT JOIN dbo.u_Kapps_Terminals t WITH (NOLOCK)
+                    ON LTRIM(RTRIM(t.TerminalID)) = CONVERT(varchar(20), d.TerminalID)
+                WHERE ISNULL(d.TerminalID, 0) <> 0
+                   OR LTRIM(RTRIM(ISNULL(d.UserID, ''))) <> ''
+            ) x
+            WHERE x.rn = 1;
+            """;
+
+        try
+        {
+            var keysCsv = string.Join('|', keys);
+            var active = (await connection.QueryAsync<KappsActiveTerminalRow>(
+                new CommandDefinition(sql, new { keysCsv }, cancellationToken: cancellationToken)))
+                .ToDictionary(a => a.ActivityKey, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in rows)
+            {
+                if (row.ActivityKey is null) continue;
+                if (!active.TryGetValue(row.ActivityKey, out var a)) continue;
+                row.ActiveTerminalId = a.ActiveTerminalId;
+                row.ActiveTerminalLabel = a.ActiveTerminalLabel;
+                row.ActiveUserId = a.ActiveUserId;
+            }
+        }
+        catch (SqlException ex) when (ex.Number == 229)
+        {
+            _logger.LogWarning(
+                ex,
+                "Sem SELECT em u_Kapps_DossierLin/u_Kapps_Terminals para portal_app. " +
+                "Centro/TV mostram progresso Kapps sem operador. Aplicar sql/097_grant_kapps_portal_app.sql.");
+        }
+    }
+
+    private sealed class TvKappsResumoRowWithKey
+    {
+        public string BoStamp { get; init; } = string.Empty;
+        public string Origem { get; init; } = string.Empty;
+        public decimal Qty { get; init; }
+        public decimal Picked { get; init; }
+        public decimal Pending { get; init; }
+        public int? ActiveTerminalId { get; set; }
+        public string? ActiveTerminalLabel { get; set; }
+        public string? ActiveUserId { get; set; }
+        public string? ActivityKey { get; init; }
+    }
+
+    private sealed class KappsActiveTerminalRow
+    {
+        public string ActivityKey { get; init; } = string.Empty;
+        public int? ActiveTerminalId { get; init; }
+        public string? ActiveTerminalLabel { get; init; }
+        public string? ActiveUserId { get; init; }
     }
 }
