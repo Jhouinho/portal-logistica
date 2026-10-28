@@ -70,4 +70,78 @@ public static class StaffPmPrecoRules
 
         return null;
     }
+
+    public const int MaxLinhasOperador = 200;
+    public const decimal QttMaxima = 999_999m;
+
+    /// <summary>
+    /// Valida o conjunto completo de linhas do operador (qtt/preço/ref) antes de substituir.
+    /// </summary>
+    public static string? ValidateLinhasOperador(IReadOnlyList<StaffPmLinhaEditRequest> linhas)
+    {
+        if (linhas is null || linhas.Count == 0)
+            return "É obrigatória pelo menos uma linha.";
+
+        if (linhas.Count > MaxLinhasOperador)
+            return $"O pedido não pode ter mais de {MaxLinhasOperador} linhas.";
+
+        for (var i = 0; i < linhas.Count; i++)
+        {
+            var l = linhas[i];
+            var refTrim = (l.Ref ?? "").Trim();
+            if (refTrim.Length == 0)
+                return $"Linha {i + 1}: referência obrigatória.";
+            if (refTrim.Length > 18)
+                return $"Linha {i + 1}: referência demasiado longa.";
+
+            if (l.Qtt != Math.Floor(l.Qtt) || l.Qtt <= 0)
+                return $"Linha {i + 1}: a quantidade deve ser um inteiro positivo.";
+            if (l.Qtt > QttMaxima)
+                return $"Linha {i + 1}: quantidade demasiado elevada.";
+
+            if (l.PrecoUnitario < 0)
+                return $"Linha {i + 1}: preço negativo.";
+            if (l.PrecoUnitario > PrecoMaximo)
+                return $"Linha {i + 1}: preço demasiado elevado.";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Constrói linhas persistidas a partir do pedido do operador, preservando PrecoSubmissao
+    /// quando a linha original (LinhaOrd) ainda existe.
+    /// </summary>
+    public static IReadOnlyList<ClientePmLinhaPersistida> BuildLinhasSubstituicao(
+        IReadOnlyList<ClientePmLinhaPersistida> existentes,
+        IReadOnlyList<StaffPmLinhaEditRequest> pedidos)
+    {
+        var byOrd = existentes.ToDictionary(l => l.LinhaOrd);
+        var result = new List<ClientePmLinhaPersistida>(pedidos.Count);
+        var ord = 1;
+        foreach (var p in pedidos)
+        {
+            var preco = RoundPreco(p.PrecoUnitario);
+            var qtt = p.Qtt;
+            var total = CalcTotalLinha(qtt, preco);
+            decimal? precoSub = null;
+            if (p.LinhaOrd is int origem && byOrd.TryGetValue(origem, out var old))
+                precoSub = old.PrecoSubmissao ?? old.PrecoUnitario;
+            else
+                precoSub = preco;
+
+            result.Add(new ClientePmLinhaPersistida(
+                ord,
+                (p.Ref ?? "").Trim(),
+                (p.Design ?? "").Trim(),
+                (p.Cor ?? "").Trim(),
+                qtt,
+                preco,
+                total,
+                precoSub));
+            ord++;
+        }
+
+        return result;
+    }
 }

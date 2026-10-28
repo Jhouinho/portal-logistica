@@ -68,7 +68,10 @@ public interface IClientePmPedidoStore
         string numeroInterno,
         CancellationToken cancellationToken);
 
-    /// <summary>Lista staff (sem filtro de cliente). filtroEstado: pendentes|integrados|rejeitados|todos.</summary>
+    /// <summary>
+    /// Lista staff (sem filtro de cliente).
+    /// filtroEstado: pendentes|integrados|em_separacao|pronto_levantamento|concluidos|rejeitados|todos.
+    /// </summary>
     Task<IReadOnlyList<ClientePmPedidoPersistido>> ListarStaffAsync(
         string? filtroEstado,
         int top,
@@ -88,7 +91,7 @@ public interface IClientePmPedidoStore
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Marca integrado + ligação PHC a partir de pendente, em_aprovacao ou reconciliação.
+    /// Marca em_separacao + ligação PHC a partir de pendente, em_aprovacao ou reconciliação.
     /// </summary>
     Task<ClientePmIntegracaoResult> TryMarcarIntegradoAsync(
         long pedidoId,
@@ -96,6 +99,15 @@ public interface IClientePmPedidoStore
         decimal obrano,
         decimal boano,
         decimal ndos,
+        string? decididoPor,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Avanço operacional pós-PHC: em_separacao/integrado → pronto_levantamento → concluido.
+    /// </summary>
+    Task<ClientePmIntegracaoResult> TryAvancarEstadoOperacionalAsync(
+        long pedidoId,
+        string estadoDestino,
         string? decididoPor,
         CancellationToken cancellationToken);
 
@@ -112,5 +124,15 @@ public interface IClientePmPedidoStore
     Task<ClientePmIntegracaoResult> TryAtualizarPrecosOperadorAsync(
         long pedidoId,
         IReadOnlyList<(int LinhaOrd, decimal PrecoUnitario)> precos,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Actualiza/insere/remove linhas (qtt/preço/add/remove) se pendente sem Bostamp.
+    /// Preserva PrecoSubmissao quando <see cref="StaffPmLinhaEditRequest.LinhaOrd"/> aponta
+    /// para uma linha existente. Remoções usam DELETE (requer GRANT — script 105).
+    /// </summary>
+    Task<ClientePmIntegracaoResult> TrySubstituirLinhasOperadorAsync(
+        long pedidoId,
+        IReadOnlyList<StaffPmLinhaEditRequest> linhas,
         CancellationToken cancellationToken);
 }

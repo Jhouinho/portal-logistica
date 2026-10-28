@@ -55,6 +55,13 @@ public static class StaffPmPedidoRules
     public static bool IsEmSeparacao(string? estadoInterno) =>
         NormalizeEstado(estadoInterno) is EstadoEmSeparacao or EstadoIntegrado;
 
+    public static bool CanMarcarProntoLevantamento(string? estadoInterno, string? bostamp) =>
+        !string.IsNullOrWhiteSpace(bostamp) && IsEmSeparacao(estadoInterno);
+
+    public static bool CanMarcarConcluido(string? estadoInterno, string? bostamp) =>
+        !string.IsNullOrWhiteSpace(bostamp)
+        && NormalizeEstado(estadoInterno) == EstadoProntoLevantamento;
+
     /// <summary>BO já referenciado no pedido mas estado ainda não é pós-aprovação (crash / timeout).</summary>
     public static bool NeedsReconcile(string? estadoInterno, string? bostamp)
     {

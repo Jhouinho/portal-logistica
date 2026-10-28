@@ -23,7 +23,10 @@ public sealed class StaffPmPedidosController : ControllerBase
         _phcUsers = phcUsers;
     }
 
-    /// <summary>filtro: pendentes (default) | integrados | rejeitados | todos</summary>
+    /// <summary>
+    /// filtro: pendentes (default) | em_separacao | pronto_levantamento | concluidos | rejeitados | todos
+    /// (integrados = alias de em_separacao, inclui legado «integrado»).
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<StaffPmPedidoListaItemDto>>> Listar(
         [FromQuery] string? filtro = "pendentes",
@@ -112,6 +115,65 @@ public sealed class StaffPmPedidosController : ControllerBase
                 pedidoId,
                 body?.Linhas ?? Array.Empty<StaffPmPrecoLinhaRequest>(),
                 cancellationToken);
+            return Ok(result);
+        }
+        catch (PortalBusinessException ex)
+        {
+            return StatusCode(ex.StatusCode, new ProblemDetails
+            {
+                Title = "Pedido Mobile",
+                Detail = ex.Message,
+                Status = ex.StatusCode
+            });
+        }
+    }
+
+    /// <summary>
+    /// Substitui linhas do pedido (quantidade, preço, adicionar, eliminar) enquanto pendente.
+    /// </summary>
+    [HttpPut("{pedidoId:long}/linhas")]
+    public async Task<ActionResult<StaffPmPedidoDetalheDto>> GuardarLinhas(
+        long pedidoId,
+        [FromBody] StaffPmGuardarLinhasRequest? body,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(User.Identity?.Name))
+            return Unauthorized();
+
+        try
+        {
+            var result = await _service.GuardarLinhasAsync(
+                pedidoId,
+                body?.Linhas ?? Array.Empty<StaffPmLinhaEditRequest>(),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (PortalBusinessException ex)
+        {
+            return StatusCode(ex.StatusCode, new ProblemDetails
+            {
+                Title = "Pedido Mobile",
+                Detail = ex.Message,
+                Status = ex.StatusCode
+            });
+        }
+    }
+
+    /// <summary>Avanço operacional: body.acao = pronto_levantamento | concluir.</summary>
+    [HttpPost("{pedidoId:long}/operacao")]
+    public async Task<ActionResult<StaffPmOperacaoResultDto>> Operacao(
+        long pedidoId,
+        [FromBody] StaffPmOperacaoRequest? body,
+        CancellationToken cancellationToken = default)
+    {
+        var login = User.Identity?.Name;
+        if (string.IsNullOrWhiteSpace(login))
+            return Unauthorized();
+
+        try
+        {
+            var result = await _service.AvancarOperacaoAsync(
+                pedidoId, body?.Acao, login, cancellationToken);
             return Ok(result);
         }
         catch (PortalBusinessException ex)

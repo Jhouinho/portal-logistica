@@ -15,7 +15,9 @@ public sealed record StaffPmPedidoListaItemDto(
     decimal? Obrano,
     decimal? Ndos,
     bool PodeAprovar,
-    bool PodeRejeitar);
+    bool PodeRejeitar,
+    bool PodeMarcarProntoLevantamento,
+    bool PodeMarcarConcluido);
 
 public sealed record StaffPmPedidoLinhaDto(
     int LinhaOrd,
@@ -49,11 +51,27 @@ public sealed record StaffPmPedidoDetalheDto(
     bool PodeAprovar,
     bool PodeRejeitar,
     bool PodeEditarPrecos,
+    bool PodeMarcarProntoLevantamento,
+    bool PodeMarcarConcluido,
     IReadOnlyList<StaffPmPedidoLinhaDto> Linhas);
 
 public sealed record StaffPmPrecoLinhaRequest(int LinhaOrd, decimal PrecoUnitario);
 
 public sealed record StaffPmGuardarPrecosRequest(IReadOnlyList<StaffPmPrecoLinhaRequest> Linhas);
+
+/// <summary>
+/// Linha editável pelo operador antes da aprovação.
+/// <see cref="LinhaOrd"/> = ordem original (preserva PrecoSubmissao); null = linha nova.
+/// </summary>
+public sealed record StaffPmLinhaEditRequest(
+    int? LinhaOrd,
+    string Ref,
+    string Design,
+    string Cor,
+    decimal Qtt,
+    decimal PrecoUnitario);
+
+public sealed record StaffPmGuardarLinhasRequest(IReadOnlyList<StaffPmLinhaEditRequest> Linhas);
 
 public sealed record StaffPmAprovarResultDto(
     long PedidoId,
@@ -77,6 +95,16 @@ public sealed record StaffPmRejeitarResultDto(
     string? MotivoRejeicao);
 
 public sealed record StaffPmRejeitarRequest(string? Motivo);
+
+/// <summary>acao: pronto_levantamento | concluir</summary>
+public sealed record StaffPmOperacaoRequest(string? Acao);
+
+public sealed record StaffPmOperacaoResultDto(
+    long PedidoId,
+    string NumeroInterno,
+    string EstadoInterno,
+    string EstadoCodigo,
+    string EstadoEtiqueta);
 
 public interface IStaffPmPedidosService
 {
@@ -102,5 +130,19 @@ public interface IStaffPmPedidosService
     Task<StaffPmPedidoDetalheDto> GuardarPrecosAsync(
         long pedidoId,
         IReadOnlyList<StaffPmPrecoLinhaRequest> linhas,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Substitui o conjunto de linhas (qtt/preço/adicionar/eliminar) enquanto pendente.
+    /// </summary>
+    Task<StaffPmPedidoDetalheDto> GuardarLinhasAsync(
+        long pedidoId,
+        IReadOnlyList<StaffPmLinhaEditRequest> linhas,
+        CancellationToken cancellationToken);
+
+    Task<StaffPmOperacaoResultDto> AvancarOperacaoAsync(
+        long pedidoId,
+        string? acao,
+        string? decididoPor,
         CancellationToken cancellationToken);
 }

@@ -38,6 +38,24 @@ public class StaffPmPedidosRulesTests
         Assert.False(StaffPmPedidoRules.ShowApproveAction("integrado", "stamp123"));
     }
 
+    [Theory]
+    [InlineData("integrado", "S1", true, false)]
+    [InlineData("em_separacao", "S1", true, false)]
+    [InlineData("pronto_levantamento", "S1", false, true)]
+    [InlineData("concluido", "S1", false, false)]
+    [InlineData("em_separacao", null, false, false)]
+    public void Circuito_operacional_separacao(
+        string estado,
+        string? bostamp,
+        bool podePronto,
+        bool podeConcluir)
+    {
+        Assert.Equal(podePronto, StaffPmPedidoRules.CanMarcarProntoLevantamento(estado, bostamp));
+        Assert.Equal(podeConcluir, StaffPmPedidoRules.CanMarcarConcluido(estado, bostamp));
+        if (bostamp is not null && estado is "integrado" or "em_separacao" or "pronto_levantamento" or "concluido")
+            Assert.True(StaffPmPedidoRules.IsIntegradoCompleto(estado, bostamp));
+    }
+
     [Fact]
     public void MapInterno_estados_operacionais()
     {

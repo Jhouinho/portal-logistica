@@ -244,8 +244,18 @@ public class ClientePmPedidoCorrecoesTests
             CancellationToken cancellationToken) =>
             Task.FromResult(new ClientePmIntegracaoResult(false, null));
 
+        public Task<ClientePmIntegracaoResult> TrySubstituirLinhasOperadorAsync(
+            long pedidoId,
+            IReadOnlyList<StaffPmLinhaEditRequest> linhas,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, null));
+
         public Task<ClientePmIntegracaoResult> TryClaimAprovacaoAsync(
             long pedidoId, CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, null));
+
+        public Task<ClientePmIntegracaoResult> TryAvancarEstadoOperacionalAsync(
+            long pedidoId, string estadoDestino, string? decididoPor, CancellationToken cancellationToken) =>
             Task.FromResult(new ClientePmIntegracaoResult(false, null));
     }
 

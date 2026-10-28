@@ -185,7 +185,7 @@ public sealed class ClientePmPedidoStore : IClientePmPedidoStore
             WHERE ClNo = @clNo
               AND ClEstab = @clEstab
               AND NumeroInterno IS NOT NULL
-            ORDER BY DataSubmissao DESC, PedidoId DESC
+            ORDER BY DataSubmissao ASC, PedidoId ASC
             """,
             new { top, clNo, clEstab },
             cancellationToken: cancellationToken));
@@ -340,7 +340,18 @@ public sealed class ClientePmPedidoStore : IClientePmPedidoStore
 
         var where = filtro switch
         {
-            "integrados" => "AND p.EstadoInterno = N'integrado' AND NULLIF(LTRIM(RTRIM(p.Bostamp)), N'') IS NOT NULL",
+            "integrados" or "em_separacao" => """
+                AND NULLIF(LTRIM(RTRIM(p.Bostamp)), N'') IS NOT NULL
+                AND p.EstadoInterno IN (N'integrado', N'em_separacao')
+                """,
+            "pronto_levantamento" => """
+                AND NULLIF(LTRIM(RTRIM(p.Bostamp)), N'') IS NOT NULL
+                AND p.EstadoInterno = N'pronto_levantamento'
+                """,
+            "concluidos" or "concluido" => """
+                AND NULLIF(LTRIM(RTRIM(p.Bostamp)), N'') IS NOT NULL
+                AND p.EstadoInterno = N'concluido'
+                """,
             "rejeitados" => "AND p.EstadoInterno = N'rejeitado'",
             "todos" => "",
             _ => """
@@ -378,7 +389,7 @@ public sealed class ClientePmPedidoStore : IClientePmPedidoStore
                 ON cl.no = p.ClNo AND cl.estab = p.ClEstab
             WHERE p.NumeroInterno IS NOT NULL
               {where}
-            ORDER BY p.DataSubmissao DESC, p.PedidoId DESC
+            ORDER BY p.DataSubmissao ASC, p.PedidoId ASC
             """,
             new { top },
             cancellationToken: cancellationToken));
@@ -565,6 +576,243 @@ public sealed class ClientePmPedidoStore : IClientePmPedidoStore
         }
     }
 
+    public async Task<ClientePmIntegracaoResult> TrySubstituirLinhasOperadorAsync(
+        long pedidoId,
+        IReadOnlyList<StaffPmLinhaEditRequest> pedidos,
+        CancellationToken cancellationToken)
+    {
+        if (pedidos is null || pedidos.Count == 0)
+            throw new PortalBusinessException("É obrigatória pelo menos uma linha.");
+
+        await using var conn = new SqlConnection(_phc.ConnectionString);
+        await conn.OpenAsync(cancellationToken);
+        await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(cancellationToken);
+        var rolledBack = false;
+
+        async Task RollbackOnceAsync()
+        {
+            if (rolledBack)
+                return;
+            await tx.RollbackAsync(cancellationToken);
+            rolledBack = true;
+        }
+
+        try
+        {
+            var cab = await conn.QuerySingleOrDefaultAsync<CabRow>(new CommandDefinition(
+                """
+                SELECT
+                    PedidoId,
+                    NumeroInterno,
+                    ClNo,
+                    ClEstab,
+                    EstadoInterno,
+                    DataSubmissao,
+                    DataAlteracao,
+                    CAST(Etotaldeb AS decimal(19,6)) AS Etotaldeb,
+                    SubmissaoPayloadHash,
+                    NULLIF(LTRIM(RTRIM(Bostamp)), N'') AS Bostamp,
+                    Obrano,
+                    Boano,
+                    Ndos,
+                    MotivoRejeicao,
+                    DecididoPor,
+                    DataDecisao,
+                    CAST(NULL AS varchar(55)) AS ClienteNome
+                FROM dbo.u_HcaPmPedido WITH (UPDLOCK, ROWLOCK)
+                WHERE PedidoId = @pedidoId
+                  AND NumeroInterno IS NOT NULL
+                """,
+                new { pedidoId },
+                transaction: tx,
+                cancellationToken: cancellationToken));
+
+            if (cab is null)
+            {
+                await RollbackOnceAsync();
+                return new ClientePmIntegracaoResult(false, null);
+            }
+
+            if (!StaffPmPrecoRules.CanEditPrecos(cab.EstadoInterno, cab.Bostamp))
+            {
+                await RollbackOnceAsync();
+                var blocked = await ObterPorIdStaffAsync(pedidoId, incluirLinhas: true, cancellationToken);
+                return new ClientePmIntegracaoResult(false, blocked);
+            }
+
+            var existentes = await LoadLinhasAsync(conn, pedidoId, cancellationToken, tx);
+            var err = StaffPmPrecoRules.ValidateLinhasOperador(pedidos);
+            if (err is not null)
+            {
+                await RollbackOnceAsync();
+                throw new PortalBusinessException(err);
+            }
+
+            var byOrd = existentes.ToDictionary(l => l.LinhaOrd);
+            var keptOrigens = new HashSet<int>();
+            foreach (var p in pedidos)
+            {
+                if (p.LinhaOrd is int origem)
+                {
+                    if (!byOrd.ContainsKey(origem))
+                    {
+                        await RollbackOnceAsync();
+                        throw new PortalBusinessException(
+                            $"Linha {origem} já não existe neste pedido. Actualize e tente novamente.",
+                            statusCode: 409);
+                    }
+
+                    if (!keptOrigens.Add(origem))
+                    {
+                        await RollbackOnceAsync();
+                        throw new PortalBusinessException($"LinhaOrd de origem {origem} duplicado.");
+                    }
+                }
+            }
+
+            // Remoções (só quando necessário — evita DELETE em fluxos só UPDATE/INSERT).
+            var toDelete = existentes.Where(e => !keptOrigens.Contains(e.LinhaOrd)).Select(e => e.LinhaOrd).ToList();
+            foreach (var ord in toDelete)
+            {
+                try
+                {
+                    await conn.ExecuteAsync(new CommandDefinition(
+                        """
+                        DELETE FROM dbo.u_HcaPmPedidoLin
+                        WHERE PedidoId = @pedidoId AND LinhaOrd = @ord
+                        """,
+                        new { pedidoId, ord },
+                        transaction: tx,
+                        cancellationToken: cancellationToken));
+                }
+                catch (SqlException ex) when (ex.Number is 229 or 230)
+                {
+                    await RollbackOnceAsync();
+                    throw new PortalBusinessException(
+                        "Sem permissão SQL para eliminar linhas (DELETE em u_HcaPmPedidoLin). Aplicar sql/105_grant_delete_u_HcaPmPedidoLin.sql.",
+                        statusCode: 500);
+                }
+            }
+
+            var maxOrd = existentes.Count == 0 ? 0 : existentes.Max(l => l.LinhaOrd);
+            // Após deletes, recalcular max a partir das linhas mantidas + novas.
+            if (keptOrigens.Count > 0)
+                maxOrd = Math.Max(maxOrd, keptOrigens.Max());
+            else
+                maxOrd = 0;
+
+            decimal etotal = 0;
+            foreach (var p in pedidos)
+            {
+                var preco = StaffPmPrecoRules.RoundPreco(p.PrecoUnitario);
+                var total = StaffPmPrecoRules.CalcTotalLinha(p.Qtt, preco);
+                etotal += total;
+                var refVal = (p.Ref ?? "").Trim();
+                var designVal = (p.Design ?? "").Trim();
+                var corVal = (p.Cor ?? "").Trim();
+                if (refVal.Length > 18) refVal = refVal[..18];
+                if (designVal.Length > 60) designVal = designVal[..60];
+                if (corVal.Length > 100) corVal = corVal[..100];
+
+                if (p.LinhaOrd is int origem)
+                {
+                    var updatedLin = await conn.ExecuteAsync(new CommandDefinition(
+                        """
+                        UPDATE dbo.u_HcaPmPedidoLin
+                        SET Ref = @refVal,
+                            Design = @designVal,
+                            Cor = @corVal,
+                            Qtt = @qtt,
+                            PrecoUnitario = @preco,
+                            TotalLinha = @total
+                        WHERE PedidoId = @pedidoId
+                          AND LinhaOrd = @origem
+                        """,
+                        new { pedidoId, origem, refVal, designVal, corVal, qtt = p.Qtt, preco, total },
+                        transaction: tx,
+                        cancellationToken: cancellationToken));
+
+                    if (updatedLin != 1)
+                    {
+                        await RollbackOnceAsync();
+                        throw new PortalBusinessException(
+                            $"Falha a actualizar a linha {origem}.",
+                            statusCode: 409);
+                    }
+                }
+                else
+                {
+                    maxOrd++;
+                    var precoSub = preco;
+                    await conn.ExecuteAsync(new CommandDefinition(
+                        """
+                        INSERT INTO dbo.u_HcaPmPedidoLin
+                        (PedidoId, LinhaOrd, Ref, Design, Cor, Qtt, PrecoUnitario, TotalLinha, PrecoSubmissao)
+                        VALUES
+                        (@pedidoId, @ord, @refVal, @designVal, @corVal, @qtt, @preco, @total, @precoSub)
+                        """,
+                        new
+                        {
+                            pedidoId,
+                            ord = maxOrd,
+                            refVal,
+                            designVal,
+                            corVal,
+                            qtt = p.Qtt,
+                            preco,
+                            total,
+                            precoSub
+                        },
+                        transaction: tx,
+                        cancellationToken: cancellationToken));
+                }
+            }
+
+            etotal = Math.Round(etotal, 6, MidpointRounding.AwayFromZero);
+            var updatedCab = await conn.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE dbo.u_HcaPmPedido
+                SET Etotaldeb = @etotal,
+                    DataAlteracao = SYSUTCDATETIME()
+                WHERE PedidoId = @pedidoId
+                  AND EstadoInterno IN (N'recebido', N'em_analise')
+                  AND NULLIF(LTRIM(RTRIM(Bostamp)), N'') IS NULL
+                """,
+                new { pedidoId, etotal },
+                transaction: tx,
+                cancellationToken: cancellationToken));
+
+            if (updatedCab != 1)
+            {
+                await RollbackOnceAsync();
+                throw new PortalBusinessException(
+                    "O estado do pedido mudou — linhas não foram gravadas. Actualize e tente novamente.",
+                    statusCode: 409);
+            }
+
+            await tx.CommitAsync(cancellationToken);
+            var pedido = await ObterPorIdStaffAsync(pedidoId, incluirLinhas: true, cancellationToken);
+            return new ClientePmIntegracaoResult(true, pedido);
+        }
+        catch (PortalBusinessException)
+        {
+            await RollbackOnceAsync();
+            throw;
+        }
+        catch (SqlException ex) when (ex.Number is 229 or 230)
+        {
+            await RollbackOnceAsync();
+            throw new PortalBusinessException(
+                "Sem permissão SQL para gravar linhas do pedido. Verifique GRANTs em u_HcaPmPedidoLin (script 105).",
+                statusCode: 500);
+        }
+        catch
+        {
+            await RollbackOnceAsync();
+            throw;
+        }
+    }
+
     public async Task<ClientePmIntegracaoResult> TryClaimAprovacaoAsync(
         long pedidoId,
         CancellationToken cancellationToken)
@@ -604,7 +852,7 @@ public sealed class ClientePmPedidoStore : IClientePmPedidoStore
         var updated = await conn.ExecuteAsync(new CommandDefinition(
             """
             UPDATE dbo.u_HcaPmPedido
-            SET EstadoInterno = N'integrado',
+            SET EstadoInterno = N'em_separacao',
                 Bostamp = LEFT(@bostamp, 25),
                 Obrano = @obrano,
                 Boano = @boano,
@@ -621,6 +869,40 @@ public sealed class ClientePmPedidoStore : IClientePmPedidoStore
               )
             """,
             new { pedidoId, bostamp, obrano, boano, ndos, decididoPor },
+            cancellationToken: cancellationToken));
+
+        var pedido = await ObterPorIdStaffAsync(pedidoId, incluirLinhas: false, cancellationToken);
+        return new ClientePmIntegracaoResult(updated > 0, pedido);
+    }
+
+    public async Task<ClientePmIntegracaoResult> TryAvancarEstadoOperacionalAsync(
+        long pedidoId,
+        string estadoDestino,
+        string? decididoPor,
+        CancellationToken cancellationToken)
+    {
+        var dest = (estadoDestino ?? "").Trim().ToLowerInvariant();
+        if (dest is not ("pronto_levantamento" or "concluido"))
+            throw new ArgumentException("estadoDestino inválido.", nameof(estadoDestino));
+
+        var fromClause = dest == "pronto_levantamento"
+            ? "AND EstadoInterno IN (N'integrado', N'em_separacao')"
+            : "AND EstadoInterno = N'pronto_levantamento'";
+
+        await using var conn = new SqlConnection(_phc.ConnectionString);
+        var updated = await conn.ExecuteAsync(new CommandDefinition(
+            $"""
+            UPDATE dbo.u_HcaPmPedido
+            SET EstadoInterno = @dest,
+                DecididoPor = LEFT(NULLIF(LTRIM(RTRIM(@decididoPor)), N''), 16),
+                DataDecisao = SYSUTCDATETIME(),
+                DataAlteracao = SYSUTCDATETIME()
+            WHERE PedidoId = @pedidoId
+              AND NumeroInterno IS NOT NULL
+              AND NULLIF(LTRIM(RTRIM(Bostamp)), N'') IS NOT NULL
+              {fromClause}
+            """,
+            new { pedidoId, dest, decididoPor },
             cancellationToken: cancellationToken));
 
         var pedido = await ObterPorIdStaffAsync(pedidoId, incluirLinhas: false, cancellationToken);

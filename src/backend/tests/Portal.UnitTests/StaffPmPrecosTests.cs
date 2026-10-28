@@ -294,6 +294,11 @@ public class StaffPmPrecosTests
                 OnMarcarIntegrado?.Invoke() ?? new ClientePmIntegracaoResult(false, Pedido));
         }
 
+
+        public Task<ClientePmIntegracaoResult> TryAvancarEstadoOperacionalAsync(
+            long pedidoId, string estadoDestino, string? decididoPor, CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, Pedido));
+
         public Task<ClientePmIntegracaoResult> TryRejeitarAsync(
             long pedidoId, string? motivo, string? decididoPor, CancellationToken cancellationToken) =>
             Task.FromResult(new ClientePmIntegracaoResult(false, Pedido));
@@ -323,6 +328,24 @@ public class StaffPmPrecosTests
             {
                 Linhas = linhas,
                 Etotaldeb = linhas.Sum(x => x.TotalLinha)
+            };
+            return Task.FromResult(new ClientePmIntegracaoResult(true, Pedido));
+        }
+
+        public Task<ClientePmIntegracaoResult> TrySubstituirLinhasOperadorAsync(
+            long pedidoId,
+            IReadOnlyList<StaffPmLinhaEditRequest> linhas,
+            CancellationToken cancellationToken)
+        {
+            if (Pedido is null || !StaffPmPrecoRules.CanEditPrecos(Pedido.EstadoInterno, Pedido.Bostamp))
+                return Task.FromResult(new ClientePmIntegracaoResult(false, Pedido));
+
+            var built = StaffPmPrecoRules.BuildLinhasSubstituicao(
+                Pedido.Linhas ?? Array.Empty<ClientePmLinhaPersistida>(), linhas);
+            Pedido = Pedido with
+            {
+                Linhas = built.ToList(),
+                Etotaldeb = built.Sum(x => x.TotalLinha)
             };
             return Task.FromResult(new ClientePmIntegracaoResult(true, Pedido));
         }

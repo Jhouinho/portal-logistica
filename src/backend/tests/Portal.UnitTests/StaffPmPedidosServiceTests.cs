@@ -179,6 +179,11 @@ public class StaffPmPedidosServiceTests
                 OnMarcarIntegrado?.Invoke() ?? new ClientePmIntegracaoResult(false, Pedido));
         }
 
+
+        public Task<ClientePmIntegracaoResult> TryAvancarEstadoOperacionalAsync(
+            long pedidoId, string estadoDestino, string? decididoPor, CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, Pedido));
+
         public Task<ClientePmIntegracaoResult> TryRejeitarAsync(
             long pedidoId, string? motivo, string? decididoPor, CancellationToken cancellationToken) =>
             Task.FromResult(OnRejeitar?.Invoke() ?? new ClientePmIntegracaoResult(false, Pedido));
@@ -186,6 +191,12 @@ public class StaffPmPedidosServiceTests
         public Task<ClientePmIntegracaoResult> TryAtualizarPrecosOperadorAsync(
             long pedidoId,
             IReadOnlyList<(int LinhaOrd, decimal PrecoUnitario)> precos,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new ClientePmIntegracaoResult(false, Pedido));
+
+        public Task<ClientePmIntegracaoResult> TrySubstituirLinhasOperadorAsync(
+            long pedidoId,
+            IReadOnlyList<StaffPmLinhaEditRequest> linhas,
             CancellationToken cancellationToken) =>
             Task.FromResult(new ClientePmIntegracaoResult(false, Pedido));
 

@@ -80,6 +80,40 @@ public sealed class StaffPmPedidosService : IStaffPmPedidosService
         return ToDetalhe(mark.Pedido);
     }
 
+    public async Task<StaffPmPedidoDetalheDto> GuardarLinhasAsync(
+        long pedidoId,
+        IReadOnlyList<StaffPmLinhaEditRequest> linhas,
+        CancellationToken cancellationToken)
+    {
+        if (pedidoId <= 0)
+            throw new PortalBusinessException("Pedido inválido.");
+
+        var pedido = await _store.ObterPorIdStaffAsync(pedidoId, incluirLinhas: true, cancellationToken)
+            ?? throw new PortalBusinessException("Pedido não encontrado.", statusCode: 404);
+
+        if (!StaffPmPrecoRules.CanEditPrecos(pedido.EstadoInterno, pedido.Bostamp))
+        {
+            throw new PortalBusinessException(
+                "As linhas só podem ser editadas enquanto o pedido estiver pendente de análise.",
+                statusCode: 409);
+        }
+
+        var pedidos = linhas ?? Array.Empty<StaffPmLinhaEditRequest>();
+        var err = StaffPmPrecoRules.ValidateLinhasOperador(pedidos);
+        if (err is not null)
+            throw new PortalBusinessException(err);
+
+        var mark = await _store.TrySubstituirLinhasOperadorAsync(pedidoId, pedidos, cancellationToken);
+        if (!mark.Updated || mark.Pedido is null)
+        {
+            throw new PortalBusinessException(
+                "O estado do pedido mudou — linhas não foram gravadas. Actualize e tente novamente.",
+                statusCode: 409);
+        }
+
+        return ToDetalhe(mark.Pedido);
+    }
+
     public async Task<StaffPmAprovarResultDto> AprovarAsync(
         long pedidoId,
         string usrinis,
@@ -288,6 +322,72 @@ public sealed class StaffPmPedidosService : IStaffPmPedidosService
             final.MotivoRejeicao);
     }
 
+    public async Task<StaffPmOperacaoResultDto> AvancarOperacaoAsync(
+        long pedidoId,
+        string? acao,
+        string? decididoPor,
+        CancellationToken cancellationToken)
+    {
+        if (pedidoId <= 0)
+            throw new PortalBusinessException("Pedido inválido.");
+
+        var a = (acao ?? "").Trim().ToLowerInvariant();
+        var destino = a switch
+        {
+            "pronto_levantamento" or "pronto-levantamento" => StaffPmPedidoRules.EstadoProntoLevantamento,
+            "concluir" or "concluido" => StaffPmPedidoRules.EstadoConcluido,
+            _ => throw new PortalBusinessException(
+                "Acção inválida. Use pronto_levantamento ou concluir.",
+                statusCode: 400)
+        };
+
+        var pedido = await _store.ObterPorIdStaffAsync(pedidoId, incluirLinhas: false, cancellationToken)
+            ?? throw new PortalBusinessException("Pedido não encontrado.", statusCode: 404);
+
+        // Idempotente: já no destino
+        if (StaffPmPedidoRules.NormalizeEstado(pedido.EstadoInterno) == destino)
+        {
+            var (c0, e0, _) = ClientePedidoEstadoMapper.MapInterno(pedido.EstadoInterno);
+            return new StaffPmOperacaoResultDto(
+                pedido.PedidoId, pedido.NumeroInterno, pedido.EstadoInterno, c0, e0);
+        }
+
+        if (destino == StaffPmPedidoRules.EstadoProntoLevantamento
+            && !StaffPmPedidoRules.CanMarcarProntoLevantamento(pedido.EstadoInterno, pedido.Bostamp))
+        {
+            throw new PortalBusinessException(
+                "Só pedidos em separação (com dossier PHC) podem passar a «Pronto para levantamento».",
+                statusCode: 409);
+        }
+
+        if (destino == StaffPmPedidoRules.EstadoConcluido
+            && !StaffPmPedidoRules.CanMarcarConcluido(pedido.EstadoInterno, pedido.Bostamp))
+        {
+            throw new PortalBusinessException(
+                "Só pedidos «Pronto para levantamento» podem ser concluídos.",
+                statusCode: 409);
+        }
+
+        var mark = await _store.TryAvancarEstadoOperacionalAsync(
+            pedidoId, destino, decididoPor, cancellationToken);
+
+        var final = mark.Pedido
+            ?? throw new PortalBusinessException(
+                "O estado do pedido mudou — actualize e tente novamente.",
+                statusCode: 409);
+
+        if (StaffPmPedidoRules.NormalizeEstado(final.EstadoInterno) != destino)
+        {
+            throw new PortalBusinessException(
+                "O estado do pedido mudou — actualize e tente novamente.",
+                statusCode: 409);
+        }
+
+        var (codigo, etiqueta, _) = ClientePedidoEstadoMapper.MapInterno(final.EstadoInterno);
+        return new StaffPmOperacaoResultDto(
+            final.PedidoId, final.NumeroInterno, final.EstadoInterno, codigo, etiqueta);
+    }
+
     private static StaffPmPedidoListaItemDto ToLista(ClientePmPedidoPersistido p)
     {
         var (codigo, etiqueta, _) = ClientePedidoEstadoMapper.MapInterno(p.EstadoInterno);
@@ -306,7 +406,9 @@ public sealed class StaffPmPedidosService : IStaffPmPedidosService
             p.Obrano,
             p.Ndos,
             StaffPmPedidoRules.ShowApproveAction(p.EstadoInterno, p.Bostamp),
-            StaffPmPedidoRules.CanReject(p.EstadoInterno, p.Bostamp));
+            StaffPmPedidoRules.CanReject(p.EstadoInterno, p.Bostamp),
+            StaffPmPedidoRules.CanMarcarProntoLevantamento(p.EstadoInterno, p.Bostamp),
+            StaffPmPedidoRules.CanMarcarConcluido(p.EstadoInterno, p.Bostamp));
     }
 
     private static StaffPmPedidoDetalheDto ToDetalhe(ClientePmPedidoPersistido p)
@@ -343,6 +445,8 @@ public sealed class StaffPmPedidosService : IStaffPmPedidosService
             StaffPmPedidoRules.ShowApproveAction(p.EstadoInterno, p.Bostamp),
             StaffPmPedidoRules.CanReject(p.EstadoInterno, p.Bostamp),
             StaffPmPrecoRules.CanEditPrecos(p.EstadoInterno, p.Bostamp),
+            StaffPmPedidoRules.CanMarcarProntoLevantamento(p.EstadoInterno, p.Bostamp),
+            StaffPmPedidoRules.CanMarcarConcluido(p.EstadoInterno, p.Bostamp),
             linhas);
     }
 
