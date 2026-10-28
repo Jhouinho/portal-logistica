@@ -96,6 +96,8 @@ try
     // Certificado UAT para instalar confiança no iOS Safari (câmara QR).
     staticTypes.Mappings[".cer"] = "application/pkix-cert";
     staticTypes.Mappings[".crt"] = "application/x-x509-ca-cert";
+    // Perfil de CA para iOS Safari (instalação manual UAT).
+    staticTypes.Mappings[".mobileconfig"] = "application/x-apple-aspen-config";
     app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticTypes });
     app.UseAuthentication();
     app.UseAuthorization();

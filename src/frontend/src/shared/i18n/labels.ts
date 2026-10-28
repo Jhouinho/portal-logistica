@@ -1,5 +1,8 @@
 export const labels = {
   appName: 'Portal de Logística',
+  /** Título do login compacto da área `/operador` (smartphones) — visual VANGFLOR. */
+  operadorLoginTitle: 'Portal Mobile',
+  operadorLoginSubtitle: 'Operadores · autenticação PHC',
   login: 'Entrar',
   logout: 'Terminar sessão',
   temaClaro: 'Tema claro',

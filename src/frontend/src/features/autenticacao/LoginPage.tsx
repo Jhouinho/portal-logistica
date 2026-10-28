@@ -1,12 +1,27 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { Alert, Box, Button, Paper, Stack, TextField, ThemeProvider, Typography } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
-import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import {
+  resolveOperadorReturnUrl,
+  resolvePostLoginDestination,
+  takeStashedOperadorReturnUrl,
+} from './safeReturnUrl'
 import { labels } from '../../shared/i18n/labels'
 import { BrandLogo } from '../../shared/ui/BrandLogo'
 import { ColorModeToggle } from '../../shared/ui/ColorModeToggle'
+import { createAppTheme } from '../../shared/theme'
 import { centroPageBg } from '../centro/centroUi'
+import {
+  ClienteAlert,
+  ClienteAuthCard,
+  ClientePageBg,
+  ClientePrimaryButton,
+  ClienteTextField,
+} from '../cliente/clienteUi'
+
+const operadorDarkTheme = createAppTheme('dark')
 
 function messageForError(code: string | null): string | null {
   if (!code) return null
@@ -15,11 +30,16 @@ function messageForError(code: string | null): string | null {
   return labels.erroGenerico
 }
 
+function sourcesFrom(params: URLSearchParams, state: unknown) {
+  return { queryReturnUrl: params.get('returnUrl'), state }
+}
+
 export function LoginPage() {
   const theme = useTheme()
   const isLight = theme.palette.mode === 'light'
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [params] = useSearchParams()
   const [utilizador, setUtilizador] = useState('')
   const [password, setPassword] = useState('')
@@ -28,18 +48,98 @@ export function LoginPage() {
   const erroQuery = useMemo(() => messageForError(params.get('error')), [params])
   const erro = erroLocal ?? erroQuery
 
+  // Capturar no mount: mantém destino de operador após falha de autenticação.
+  const operadorReturnRef = useRef<string | null>(
+    resolveOperadorReturnUrl(sourcesFrom(params, location.state)),
+  )
+  const isOperadorUi = operadorReturnRef.current != null
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setErroLocal(null)
     setBusy(true)
     try {
       await login(utilizador.trim(), password)
-      navigate('/', { replace: true })
+      const liveQuery = new URLSearchParams(window.location.search).get('returnUrl')
+      const dest = resolvePostLoginDestination({
+        queryReturnUrl: liveQuery,
+        state: location.state,
+        stashed: operadorReturnRef.current,
+      })
+      // Só limpar stash após sucesso (falha mantém returnUrl / UI de operador).
+      takeStashedOperadorReturnUrl()
+      navigate(dest, { replace: true })
     } catch (err) {
       setErroLocal(err instanceof Error ? err.message : labels.credenciaisInvalidas)
     } finally {
       setBusy(false)
     }
+  }
+
+  const formFields = (
+    <>
+      {erro && <Alert severity="error">{erro}</Alert>}
+      <TextField
+        label={labels.utilizador}
+        value={utilizador}
+        onChange={(e) => setUtilizador(e.target.value)}
+        autoComplete="username"
+        required
+        fullWidth
+        autoFocus
+      />
+      <TextField
+        label={labels.password}
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="current-password"
+        required
+        fullWidth
+      />
+      <Button type="submit" variant="contained" size="large" disabled={busy} fullWidth>
+        {labels.login}
+      </Button>
+    </>
+  )
+
+  if (isOperadorUi) {
+    return (
+      <ThemeProvider theme={operadorDarkTheme}>
+        <ClientePageBg>
+          <ClienteAuthCard title="Portal Mobile" subtitle={labels.operadorLoginSubtitle}>
+            {erro && (
+              <Box mb={2}>
+                <ClienteAlert severity="error">{erro}</ClienteAlert>
+              </Box>
+            )}
+            <Box component="form" onSubmit={onSubmit}>
+              <Stack spacing={2}>
+                <ClienteTextField
+                  label={labels.utilizador}
+                  value={utilizador}
+                  onChange={(e) => setUtilizador(e.target.value)}
+                  autoComplete="username"
+                  required
+                  autoFocus
+                />
+                <ClienteTextField
+                  label={labels.password}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+                <ClientePrimaryButton type="submit" disabled={busy}>
+                  {labels.login}
+                </ClientePrimaryButton>
+              </Stack>
+            </Box>
+          </ClienteAuthCard>
+        </ClientePageBg>
+      </ThemeProvider>
+    )
   }
 
   return (
@@ -107,28 +207,7 @@ export function LoginPage() {
           gap={2}
           sx={isLight ? { p: 3 } : undefined}
         >
-          {erro && <Alert severity="error">{erro}</Alert>}
-          <TextField
-            label={labels.utilizador}
-            value={utilizador}
-            onChange={(e) => setUtilizador(e.target.value)}
-            autoComplete="username"
-            required
-            fullWidth
-            autoFocus
-          />
-          <TextField
-            label={labels.password}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-            fullWidth
-          />
-          <Button type="submit" variant="contained" size="large" disabled={busy}>
-            {labels.login}
-          </Button>
+          {formFields}
           <Button
             component={RouterLink}
             to="/tv"

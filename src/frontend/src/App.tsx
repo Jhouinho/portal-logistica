@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, createSearchParams } from 'react-router-dom'
+import { stashOperadorReturnUrl } from './features/autenticacao/safeReturnUrl'
 import { CssBaseline, GlobalStyles, ThemeProvider } from '@mui/material'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
@@ -41,7 +42,34 @@ import { EmEntregaPage } from './features/entrega/EmEntregaPage'
 import { ExpedidoPage } from './features/expedido/ExpedidoPage'
 import { PedidosMobileListPage } from './features/pedidos-mobile/PedidosMobileListPage'
 import { PedidosMobileDetailPage } from './features/pedidos-mobile/PedidosMobileDetailPage'
+import { OperadorShell } from './features/operador/OperadorShell'
 import { getPortalScrollbarGlobalCss } from './features/centro/portalChrome'
+
+const OPERADOR_PM_BASE = '/operador/pedidos-mobile'
+
+/**
+ * Catch-all do portal: paths `/operador…` sem match de rota filha não devem ir para `/`
+ * (isso apagava o returnUrl). Encaminham para login de operador com destino preservado.
+ */
+function PortalUnknownRedirect() {
+  const location = useLocation()
+  const returnUrl = `${location.pathname}${location.search}`
+  const isOperador = returnUrl === '/operador' || returnUrl.startsWith('/operador/')
+  if (isOperador) {
+    stashOperadorReturnUrl(returnUrl)
+    return (
+      <Navigate
+        to={{
+          pathname: '/login',
+          search: `?${createSearchParams({ returnUrl })}`,
+        }}
+        state={{ returnUrl }}
+        replace
+      />
+    )
+  }
+  return <Navigate to="/" replace />
+}
 
 /** Rotas do portal (cookie). A Vista TV fica fora — sem AuthProvider / sem login. */
 function PortalRoutes() {
@@ -77,8 +105,23 @@ function PortalRoutes() {
               </Route>
             </Route>
           </Route>
+          {/*
+            path absoluto `/operador`: sob o pai App `path="/*"`, rotas relativas
+            (`operador`) podem falhar o match → cai no `*` → `/` → `/login` sem returnUrl.
+          */}
+          <Route path="/operador" element={<OperadorShell />}>
+            <Route index element={<Navigate to={OPERADOR_PM_BASE} replace />} />
+            <Route
+              path="pedidos-mobile"
+              element={<PedidosMobileListPage listBasePath={OPERADOR_PM_BASE} />}
+            />
+            <Route
+              path="pedidos-mobile/:pedidoId"
+              element={<PedidosMobileDetailPage listBasePath={OPERADOR_PM_BASE} />}
+            />
+          </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<PortalUnknownRedirect />} />
       </Routes>
     </AuthProvider>
   )
@@ -100,6 +143,7 @@ function RouteOverflowStyles() {
   const { pathname } = useLocation()
   const scrollLivre =
     pathname.startsWith('/cliente') ||
+    pathname.startsWith('/operador') ||
     pathname === '/tv' ||
     pathname === '/centro-tv'
 
