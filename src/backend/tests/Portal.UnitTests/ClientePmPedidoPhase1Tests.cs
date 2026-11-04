@@ -67,13 +67,12 @@ public class ClientePmPedidoPhase1Tests
     }
 
     [Fact]
-    public void MapInterno_integrado_legado_apresenta_em_separacao()
+    public void MapInterno_integrado_legado_apresenta_validado()
     {
-        // Circuito operacional: «integrado» (legado) e «em_separacao» apresentam-se
-        // como Em separação ao cliente — ver StaffPmPedidoRules.IsEmSeparacao / filtro API.
+        // Circuito balcão 1B+2C: após BO ligado → «Validado» (faturação no PHC).
         var m = ClientePedidoEstadoMapper.MapInterno("integrado");
-        Assert.Equal("em_separacao", m.Codigo);
-        Assert.Equal("Em separação", m.Etiqueta);
+        Assert.Equal("validado", m.Codigo);
+        Assert.Equal("Validado", m.Etiqueta);
         Assert.False(m.PodeCancelar);
     }
 

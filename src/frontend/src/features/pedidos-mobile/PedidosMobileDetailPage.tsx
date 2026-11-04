@@ -192,26 +192,6 @@ export function PedidosMobileDetailPage({ listBasePath = '/pedidos-mobile' }: Pr
     }
   }
 
-  async function avancarOperacao(acao: 'pronto_levantamento' | 'concluir') {
-    if (actionLock.current) return
-    if (acao === 'pronto_levantamento' && !item?.podeMarcarProntoLevantamento) return
-    if (acao === 'concluir' && !item?.podeMarcarConcluido) return
-    actionLock.current = true
-    setBusy(true)
-    setErro(null)
-    setSucesso(null)
-    try {
-      const r = await api.staffPmOperacao(pedidoId, acao)
-      setSucesso(`Estado actualizado: ${r.estadoEtiqueta}.`)
-      await carregar()
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : labels.erroGenerico)
-    } finally {
-      setBusy(false)
-      actionLock.current = false
-    }
-  }
-
   if (loading) {
     return (
       <Box sx={portalPageScrollSx} display="flex" justifyContent="center" py={6}>
@@ -252,7 +232,6 @@ export function PedidosMobileDetailPage({ listBasePath = '/pedidos-mobile' }: Pr
           }}
           onAprovar={() => void aprovar()}
           onRejeitarOpen={() => setRejeitarAberto(true)}
-          onOperacao={(acao) => void avancarOperacao(acao)}
           onError={setErro}
           onBusy={setBusy}
         />
@@ -425,7 +404,7 @@ export function PedidosMobileDetailPage({ listBasePath = '/pedidos-mobile' }: Pr
             onClick={() => void aprovar()}
             sx={portalPrimaryCtaSx}
           >
-            {busy ? 'A processar…' : 'Aprovar e criar dossier PHC'}
+            {busy ? 'A processar…' : 'Validar no balcão e criar dossier PHC'}
           </Button>
         )}
         {item.podeRejeitar && (
@@ -436,28 +415,6 @@ export function PedidosMobileDetailPage({ listBasePath = '/pedidos-mobile' }: Pr
             onClick={() => setRejeitarAberto(true)}
           >
             Rejeitar
-          </Button>
-        )}
-        {item.podeMarcarProntoLevantamento && (
-          <Button
-            variant="contained"
-            color="info"
-            disabled={busy}
-            onClick={() => void avancarOperacao('pronto_levantamento')}
-            sx={portalPrimaryCtaSx}
-          >
-            Pronto para levantamento
-          </Button>
-        )}
-        {item.podeMarcarConcluido && (
-          <Button
-            variant="contained"
-            color="success"
-            disabled={busy}
-            onClick={() => void avancarOperacao('concluir')}
-            sx={portalPrimaryCtaSx}
-          >
-            Marcar concluído
           </Button>
         )}
         <Button variant="text" onClick={() => navigate(listPath)}>

@@ -8,14 +8,20 @@ namespace Portal.Api.Errors;
 /// <summary>
 /// Tratamento centralizado: erros de negócio expõem a mensagem;
 /// erros inesperados devolvem mensagem genérica + correlationId (detalhe só no log).
+/// Em Development, o Detail inclui a mensagem da excepção (ex. SQL) para diagnóstico.
 /// </summary>
 public sealed class PortalExceptionHandler : IExceptionHandler
 {
     public const string GenericMessage = "Ocorreu um erro. Tente novamente.";
 
     private readonly ILogger<PortalExceptionHandler> _logger;
+    private readonly IHostEnvironment _env;
 
-    public PortalExceptionHandler(ILogger<PortalExceptionHandler> logger) => _logger = logger;
+    public PortalExceptionHandler(ILogger<PortalExceptionHandler> logger, IHostEnvironment env)
+    {
+        _logger = logger;
+        _env = env;
+    }
 
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -54,12 +60,17 @@ public sealed class PortalExceptionHandler : IExceptionHandler
             httpContext.Request.Path.Value,
             httpContext.Request.Method);
 
+        // Development: mensagem da excepção. Production: genérica (detalhe só no log).
+        var detail = GenericMessage;
+        if (_env.IsDevelopment())
+            detail = exception.GetBaseException().Message;
+
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
         await httpContext.Response.WriteAsJsonAsync(
             new ProblemDetails
             {
                 Title = "Erro interno",
-                Detail = GenericMessage,
+                Detail = detail,
                 Status = StatusCodes.Status500InternalServerError,
                 Extensions = { ["correlationId"] = correlationId }
             },

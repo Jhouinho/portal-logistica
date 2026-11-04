@@ -1,6 +1,9 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Portal.Api.Errors;
 using Portal.Application.Encomendas;
@@ -12,7 +15,9 @@ public class PortalExceptionHandlerTests
     [Fact]
     public async Task Negocio_devolve_status_e_detail_esperados()
     {
-        var handler = new PortalExceptionHandler(NullLogger<PortalExceptionHandler>.Instance);
+        var handler = new PortalExceptionHandler(
+            NullLogger<PortalExceptionHandler>.Instance,
+            FakeEnv.Production());
         var ctx = NewContext();
 
         var ok = await handler.TryHandleAsync(
@@ -29,9 +34,11 @@ public class PortalExceptionHandlerTests
     }
 
     [Fact]
-    public async Task Unexpected_nao_expoe_mensagem_original_e_tem_correlationId()
+    public async Task Unexpected_em_Production_nao_expoe_mensagem_original()
     {
-        var handler = new PortalExceptionHandler(NullLogger<PortalExceptionHandler>.Instance);
+        var handler = new PortalExceptionHandler(
+            NullLogger<PortalExceptionHandler>.Instance,
+            FakeEnv.Production());
         var ctx = NewContext();
         ctx.TraceIdentifier = "corr-test-abc";
 
@@ -61,6 +68,25 @@ public class PortalExceptionHandlerTests
         Assert.Equal("corr-test-abc", correlation);
     }
 
+    [Fact]
+    public async Task Unexpected_em_Development_expoe_mensagem_base()
+    {
+        var handler = new PortalExceptionHandler(
+            NullLogger<PortalExceptionHandler>.Instance,
+            FakeEnv.Development());
+        var ctx = NewContext();
+
+        var ok = await handler.TryHandleAsync(
+            ctx,
+            new InvalidOperationException("Incorrect syntax near 'APPLY'."),
+            CancellationToken.None);
+
+        Assert.True(ok);
+        var body = await ReadBody(ctx);
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal("Incorrect syntax near 'APPLY'.", doc.RootElement.GetProperty("detail").GetString());
+    }
+
     private static DefaultHttpContext NewContext()
     {
         var ctx = new DefaultHttpContext();
@@ -75,5 +101,18 @@ public class PortalExceptionHandlerTests
         ctx.Response.Body.Position = 0;
         using var reader = new StreamReader(ctx.Response.Body, Encoding.UTF8, leaveOpen: true);
         return await reader.ReadToEndAsync();
+    }
+
+    private sealed class FakeEnv : IWebHostEnvironment
+    {
+        public required string EnvironmentName { get; set; }
+        public string ApplicationName { get; set; } = "Portal.Api";
+        public string ContentRootPath { get; set; } = ".";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = ".";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+
+        public static FakeEnv Production() => new() { EnvironmentName = Environments.Production };
+        public static FakeEnv Development() => new() { EnvironmentName = Environments.Development };
     }
 }

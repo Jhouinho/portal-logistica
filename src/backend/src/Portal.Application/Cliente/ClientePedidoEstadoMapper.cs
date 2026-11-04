@@ -1,9 +1,9 @@
 namespace Portal.Application.Cliente;
 
 /// <summary>
-/// Mapeamento estado interno / legado → apresentação ao cliente.
-/// Após dossier PHC ligado: <c>integrado</c> (legado) e <c>em_separacao</c> apresentam-se
-/// como «Em separação»; progresso seguinte: pronto_levantamento → concluido.
+/// Mapeamento estado interno / legado → apresentação.
+/// Circuito balcão (1B+2C): após dossier PHC ligado, <c>integrado</c> / <c>em_separacao</c>
+/// (e estados operacionais legados) apresentam-se como «Validado»; faturação no PHC.
 /// </summary>
 public static class ClientePedidoEstadoMapper
 {
@@ -27,10 +27,10 @@ public static class ClientePedidoEstadoMapper
             "rejeitado" => ("rejeitado", "Rejeitado", false),
             "em_analise" => ("em_analise", "Em análise", false),
             "em_aprovacao" => ("em_aprovacao", "Em aprovação", false),
-            "integrado" => ("em_separacao", "Em separação", false),
-            "em_separacao" => ("em_separacao", "Em separação", false),
-            "pronto_levantamento" => ("pronto_levantamento", "Pronto para levantamento", false),
-            "concluido" => ("concluido", "Concluído", false),
+            "integrado" => ("validado", "Validado", false),
+            "em_separacao" => ("validado", "Validado", false),
+            "pronto_levantamento" => ("validado", "Validado", false),
+            "concluido" => ("validado", "Validado", false),
             _ => ("recebido", "Recebido", false)
         };
     }

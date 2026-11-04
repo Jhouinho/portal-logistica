@@ -37,19 +37,11 @@ import {
   fmtEuro,
 } from '../operador/operadorUi'
 
-type Filtro =
-  | 'pendentes'
-  | 'em_separacao'
-  | 'pronto_levantamento'
-  | 'concluidos'
-  | 'rejeitados'
-  | 'todos'
+type Filtro = 'pendentes' | 'integrados' | 'rejeitados' | 'todos'
 
 const FILTROS_PRINCIPAIS: { value: Filtro; label: string }[] = [
   { value: 'pendentes', label: 'Pendentes' },
-  { value: 'em_separacao', label: 'Em separação' },
-  { value: 'pronto_levantamento', label: 'Pronto p/ levantamento' },
-  { value: 'concluidos', label: 'Concluído' },
+  { value: 'integrados', label: 'Validados' },
 ]
 
 function fmtData(iso: string): string {
@@ -58,11 +50,7 @@ function fmtData(iso: string): string {
 
 function estadoColor(codigo: string): 'default' | 'warning' | 'success' | 'error' | 'info' {
   switch (codigo) {
-    case 'em_separacao':
-      return 'warning'
-    case 'pronto_levantamento':
-      return 'info'
-    case 'concluido':
+    case 'validado':
       return 'success'
     case 'rejeitado':
     case 'cancelado':
@@ -337,7 +325,7 @@ export function PedidosMobileListPage({ listBasePath = '/pedidos-mobile' }: Prop
         </Typography>
       </Stack>
       <Typography variant="body2" color="text.secondary" mb={2}>
-        Aprovação de pedidos internos e acompanhamento da separação até ao levantamento.
+        Validação no balcão: conferir artigos, preços e criar o dossier PHC. A faturação faz-se no PHC.
       </Typography>
 
       <Tabs
@@ -348,9 +336,7 @@ export function PedidosMobileListPage({ listBasePath = '/pedidos-mobile' }: Prop
         allowScrollButtonsMobile
       >
         <Tab value="pendentes" label="Pendentes" />
-        <Tab value="em_separacao" label="Em separação" />
-        <Tab value="pronto_levantamento" label="Pronto p/ levantamento" />
-        <Tab value="concluidos" label="Concluído" />
+        <Tab value="integrados" label="Validados" />
         <Tab value="rejeitados" label="Rejeitados" />
         <Tab value="todos" label="Todos" />
       </Tabs>

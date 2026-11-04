@@ -7,8 +7,9 @@
 | Procedimento completo | **[`prod-passo-a-passo-aplicar-pedidos-mobile.md`](./prod-passo-a-passo-aplicar-pedidos-mobile.md)** — execução, SQL, publish e **rollback** |
 | Checklist DBA | [`prod-checklist-dba-pedidos-internos-pos-inventario.md`](./prod-checklist-dba-pedidos-internos-pos-inventario.md) |
 | HTTPS / QR | [`prod-https-portal-passo-a-passo.md`](./prod-https-portal-passo-a-passo.md) |
+| Deploy balcão 1B+2C | [`prod-deploy-circuito-balcao-pm.md`](./prod-deploy-circuito-balcao-pm.md) — o que já está na BD/flag e o que publicar |
 
-> Não executar escrita em produção só com este índice. Usar o **passo a passo** como referência obrigatória.
+> Não executar escrita em produção só com este índice. Usar o **passo a passo** / deploy balcão como referência obrigatória.
 >
 > **Não apagar / sobrescrever:** `appsettings.Production.json` · pasta `dp-keys`.
 >

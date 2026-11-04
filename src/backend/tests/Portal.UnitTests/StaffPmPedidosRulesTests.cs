@@ -39,32 +39,23 @@ public class StaffPmPedidosRulesTests
     }
 
     [Theory]
-    [InlineData("integrado", "S1", true, false)]
-    [InlineData("em_separacao", "S1", true, false)]
-    [InlineData("pronto_levantamento", "S1", false, true)]
-    [InlineData("concluido", "S1", false, false)]
-    [InlineData("em_separacao", null, false, false)]
-    public void Circuito_operacional_separacao(
-        string estado,
-        string? bostamp,
-        bool podePronto,
-        bool podeConcluir)
+    [InlineData("integrado", "S1")]
+    [InlineData("em_separacao", "S1")]
+    [InlineData("pronto_levantamento", "S1")]
+    [InlineData("concluido", "S1")]
+    public void Circuito_balcao_pos_BO_continua_integrado_completo(string estado, string bostamp)
     {
-        Assert.Equal(podePronto, StaffPmPedidoRules.CanMarcarProntoLevantamento(estado, bostamp));
-        Assert.Equal(podeConcluir, StaffPmPedidoRules.CanMarcarConcluido(estado, bostamp));
-        if (bostamp is not null && estado is "integrado" or "em_separacao" or "pronto_levantamento" or "concluido")
-            Assert.True(StaffPmPedidoRules.IsIntegradoCompleto(estado, bostamp));
+        // Regras CanMarcar* mantêm-se no domínio; a API staff força flags false (balcão).
+        Assert.True(StaffPmPedidoRules.IsIntegradoCompleto(estado, bostamp));
     }
 
     [Fact]
-    public void MapInterno_estados_operacionais()
+    public void MapInterno_estados_pos_validacao_balcao()
     {
-        Assert.Equal("Em separação", ClientePedidoEstadoMapper.MapInterno("em_separacao").Etiqueta);
-        Assert.Equal("Em separação", ClientePedidoEstadoMapper.MapInterno("integrado").Etiqueta);
-        Assert.Equal(
-            "Pronto para levantamento",
-            ClientePedidoEstadoMapper.MapInterno("pronto_levantamento").Etiqueta);
-        Assert.Equal("Concluído", ClientePedidoEstadoMapper.MapInterno("concluido").Etiqueta);
+        Assert.Equal(("validado", "Validado", false), ClientePedidoEstadoMapper.MapInterno("em_separacao"));
+        Assert.Equal(("validado", "Validado", false), ClientePedidoEstadoMapper.MapInterno("integrado"));
+        Assert.Equal(("validado", "Validado", false), ClientePedidoEstadoMapper.MapInterno("pronto_levantamento"));
+        Assert.Equal(("validado", "Validado", false), ClientePedidoEstadoMapper.MapInterno("concluido"));
     }
 
     [Fact]

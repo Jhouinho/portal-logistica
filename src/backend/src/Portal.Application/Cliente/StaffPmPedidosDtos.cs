@@ -96,7 +96,7 @@ public sealed record StaffPmRejeitarResultDto(
 
 public sealed record StaffPmRejeitarRequest(string? Motivo);
 
-/// <summary>acao: pronto_levantamento | concluir</summary>
+/// <summary>Legado — endpoint operacao desactivado (circuito balcão).</summary>
 public sealed record StaffPmOperacaoRequest(string? Acao);
 
 public sealed record StaffPmOperacaoResultDto(

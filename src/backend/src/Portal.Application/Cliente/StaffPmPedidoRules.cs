@@ -8,8 +8,9 @@ public static class StaffPmPedidoRules
     /// <summary>Claim atómico antes da criação do dossier PHC; bloqueia rejeição e preços.</summary>
     public const string EstadoEmAprovacao = "em_aprovacao";
     public const string EstadoIntegrado = "integrado";
-    /// <summary>Pós-aprovação: em separação no armazém (valor preferido após criar BO).</summary>
+    /// <summary>Pós-aprovação / BO ligado (valor gravado após criar BO; UI = Validado).</summary>
     public const string EstadoEmSeparacao = "em_separacao";
+    /// <summary>Legado armazém — UI balcão mapeia para Validado; POST operacao desactivado.</summary>
     public const string EstadoProntoLevantamento = "pronto_levantamento";
     public const string EstadoConcluido = "concluido";
     public const string EstadoRejeitado = "rejeitado";

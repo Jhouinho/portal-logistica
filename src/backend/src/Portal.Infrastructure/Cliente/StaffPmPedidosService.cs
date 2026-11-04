@@ -322,70 +322,19 @@ public sealed class StaffPmPedidosService : IStaffPmPedidosService
             final.MotivoRejeicao);
     }
 
-    public async Task<StaffPmOperacaoResultDto> AvancarOperacaoAsync(
+    public Task<StaffPmOperacaoResultDto> AvancarOperacaoAsync(
         long pedidoId,
         string? acao,
         string? decididoPor,
         CancellationToken cancellationToken)
     {
-        if (pedidoId <= 0)
-            throw new PortalBusinessException("Pedido inválido.");
-
-        var a = (acao ?? "").Trim().ToLowerInvariant();
-        var destino = a switch
-        {
-            "pronto_levantamento" or "pronto-levantamento" => StaffPmPedidoRules.EstadoProntoLevantamento,
-            "concluir" or "concluido" => StaffPmPedidoRules.EstadoConcluido,
-            _ => throw new PortalBusinessException(
-                "Acção inválida. Use pronto_levantamento ou concluir.",
-                statusCode: 400)
-        };
-
-        var pedido = await _store.ObterPorIdStaffAsync(pedidoId, incluirLinhas: false, cancellationToken)
-            ?? throw new PortalBusinessException("Pedido não encontrado.", statusCode: 404);
-
-        // Idempotente: já no destino
-        if (StaffPmPedidoRules.NormalizeEstado(pedido.EstadoInterno) == destino)
-        {
-            var (c0, e0, _) = ClientePedidoEstadoMapper.MapInterno(pedido.EstadoInterno);
-            return new StaffPmOperacaoResultDto(
-                pedido.PedidoId, pedido.NumeroInterno, pedido.EstadoInterno, c0, e0);
-        }
-
-        if (destino == StaffPmPedidoRules.EstadoProntoLevantamento
-            && !StaffPmPedidoRules.CanMarcarProntoLevantamento(pedido.EstadoInterno, pedido.Bostamp))
-        {
-            throw new PortalBusinessException(
-                "Só pedidos em separação (com dossier PHC) podem passar a «Pronto para levantamento».",
-                statusCode: 409);
-        }
-
-        if (destino == StaffPmPedidoRules.EstadoConcluido
-            && !StaffPmPedidoRules.CanMarcarConcluido(pedido.EstadoInterno, pedido.Bostamp))
-        {
-            throw new PortalBusinessException(
-                "Só pedidos «Pronto para levantamento» podem ser concluídos.",
-                statusCode: 409);
-        }
-
-        var mark = await _store.TryAvancarEstadoOperacionalAsync(
-            pedidoId, destino, decididoPor, cancellationToken);
-
-        var final = mark.Pedido
-            ?? throw new PortalBusinessException(
-                "O estado do pedido mudou — actualize e tente novamente.",
-                statusCode: 409);
-
-        if (StaffPmPedidoRules.NormalizeEstado(final.EstadoInterno) != destino)
-        {
-            throw new PortalBusinessException(
-                "O estado do pedido mudou — actualize e tente novamente.",
-                statusCode: 409);
-        }
-
-        var (codigo, etiqueta, _) = ClientePedidoEstadoMapper.MapInterno(final.EstadoInterno);
-        return new StaffPmOperacaoResultDto(
-            final.PedidoId, final.NumeroInterno, final.EstadoInterno, codigo, etiqueta);
+        // Circuito balcão (1B+2C): sem separação / levantamento no portal.
+        // Validação = Aprovar (+ BO67); faturação no PHC CS.
+        _ = (pedidoId, acao, decididoPor, cancellationToken);
+        return Task.FromException<StaffPmOperacaoResultDto>(
+            new PortalBusinessException(
+                "Circuito balcão: use Validar/Aprovar para criar o dossier PHC. A faturação faz-se no PHC — não há avanço «pronto para levantamento» / «concluir» no portal.",
+                statusCode: 400));
     }
 
     private static StaffPmPedidoListaItemDto ToLista(ClientePmPedidoPersistido p)
@@ -407,8 +356,8 @@ public sealed class StaffPmPedidosService : IStaffPmPedidosService
             p.Ndos,
             StaffPmPedidoRules.ShowApproveAction(p.EstadoInterno, p.Bostamp),
             StaffPmPedidoRules.CanReject(p.EstadoInterno, p.Bostamp),
-            StaffPmPedidoRules.CanMarcarProntoLevantamento(p.EstadoInterno, p.Bostamp),
-            StaffPmPedidoRules.CanMarcarConcluido(p.EstadoInterno, p.Bostamp));
+            PodeMarcarProntoLevantamento: false,
+            PodeMarcarConcluido: false);
     }
 
     private static StaffPmPedidoDetalheDto ToDetalhe(ClientePmPedidoPersistido p)
@@ -445,8 +394,8 @@ public sealed class StaffPmPedidosService : IStaffPmPedidosService
             StaffPmPedidoRules.ShowApproveAction(p.EstadoInterno, p.Bostamp),
             StaffPmPedidoRules.CanReject(p.EstadoInterno, p.Bostamp),
             StaffPmPrecoRules.CanEditPrecos(p.EstadoInterno, p.Bostamp),
-            StaffPmPedidoRules.CanMarcarProntoLevantamento(p.EstadoInterno, p.Bostamp),
-            StaffPmPedidoRules.CanMarcarConcluido(p.EstadoInterno, p.Bostamp),
+            PodeMarcarProntoLevantamento: false,
+            PodeMarcarConcluido: false,
             linhas);
     }
 

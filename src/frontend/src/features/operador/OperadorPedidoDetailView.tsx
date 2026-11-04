@@ -67,7 +67,6 @@ type Props = {
   onSaved: (d: StaffPmPedidoDetalhe) => void
   onAprovar: () => void
   onRejeitarOpen: () => void
-  onOperacao: (acao: 'pronto_levantamento' | 'concluir') => void
   onError: (msg: string) => void
   onBusy: (v: boolean) => void
 }
@@ -82,7 +81,6 @@ export function OperadorPedidoDetailView({
   onSaved,
   onAprovar,
   onRejeitarOpen,
-  onOperacao,
   onError,
   onBusy,
 }: Props) {
@@ -389,7 +387,7 @@ export function OperadorPedidoDetailView({
             onClick={onAprovar}
             sx={{ minHeight: 48, fontWeight: 700, textTransform: 'none', borderRadius: 2 }}
           >
-            {busy ? 'A processar…' : 'Aprovar e criar dossier PHC'}
+            {busy ? 'A processar…' : 'Validar no balcão e criar dossier PHC'}
           </Button>
         )}
         {item.podeRejeitar && (
@@ -402,30 +400,6 @@ export function OperadorPedidoDetailView({
             sx={{ minHeight: 48, fontWeight: 700, textTransform: 'none', borderRadius: 2 }}
           >
             Rejeitar
-          </Button>
-        )}
-        {item.podeMarcarProntoLevantamento && (
-          <Button
-            fullWidth
-            variant="contained"
-            color="info"
-            disabled={busy}
-            onClick={() => onOperacao('pronto_levantamento')}
-            sx={{ minHeight: 48, fontWeight: 700, textTransform: 'none', borderRadius: 2 }}
-          >
-            Pronto para levantamento
-          </Button>
-        )}
-        {item.podeMarcarConcluido && (
-          <Button
-            fullWidth
-            variant="contained"
-            color="success"
-            disabled={busy}
-            onClick={() => onOperacao('concluir')}
-            sx={{ minHeight: 48, fontWeight: 700, textTransform: 'none', borderRadius: 2 }}
-          >
-            Marcar concluído
           </Button>
         )}
         {dirty && podeEditar && (

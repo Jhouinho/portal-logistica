@@ -161,16 +161,17 @@ public sealed class PickingDossiersQuery : IPickingDossiersQuery
         p.Add("pageSize", pageSize);
 
         // Fragmentos de origem: PickingDossiersOrigemSql (testes de contrato).
+        // IMPORTANTE: não pôr comentários SQL "--" imediatamente antes da concatenação —
+        // raw strings C# omitem o newline final e o CAST ficava na mesma linha do "--"
+        // → coluna obrano_origem comentada → Invalid column name.
         const string fromSql =
             """
             FROM (
                 SELECT
                     bo.bostamp,
                     bo.obrano,
-                    -- Cadeia documental: Encomenda (1) ← Picking (66) ← Separação (65).
-                    -- Origem atómica (PickingDossiersOrigemSql / OrigemEncomendaResolver).
-                    -- ousrdata/ousrhora do mesmo BO que obrano_origem (nunca 66/65).
             """
+            + "\n"
             + PickingDossiersOrigemSql.SelectCamposOrigem
             + """
                     ,

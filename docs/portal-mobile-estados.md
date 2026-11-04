@@ -1,29 +1,30 @@
-# Portal Mobile — Estados (implementação actual)
+# Portal Mobile — Estados (circuito balcão 1B + 2C)
 
-| Estado UI | Código API | Implementação actual |
+| Estado UI | Código API | Notas |
+| --- | --- | --- |
+| Recebido / Em análise | `recebido` / `em_analise` | Fila portal (`u_HcaPmPedido`); **sem** BO67 na submissão |
+| Em aprovação | `em_aprovacao` | Claim atómico antes da SP criar ndos=67 |
+| Validado | `validado` (interno: `integrado` / `em_separacao` / legado operacional) | Dossier PHC ligado; faturação **no PHC CS** |
+| Rejeitado | `rejeitado` | Staff rejeitou no balcão |
+| Cancelado | `cancelado` | Circuito legado / cancelamento |
+
+## Circuito actual (balcão)
+
+1. Cliente regista e recolhe artigos → submete → só `u_HcaPmPedido` (`PedidosInternosEnabled=true`).
+2. Dirige-se ao balcão com os artigos.
+3. Staff confere linhas/preços → **Validar** (`Aprovar`) → cria dossier `ndos=67`.
+4. Faturação do dossier no PHC — **fora do portal**.
+5. Fim.
+
+**Removido da UI/API activa:** Em separação → Pronto p/ levantamento → Concluir (`POST …/operacao` devolve 400).
+
+## Legado (flag off / BO directo)
+
+| Estado UI | Código API | Implementação |
 | --- | --- | --- |
 | Pedido submetido | `submetido` | Documento `ndos=67` sem entrada em `u_HcaPedidoMobileCancel` |
-| Cancelado | `cancelado` | `sp_HCA_cancelar_pedido_mobile`: INSERT `u_HcaPedidoMobileCancel` + `BO.fechada=1` (+ `BI.fechada=1`); histórico omite; detalhe 404 |
-| Em preparação | — | **Pendente** — exige associação Cópia de Dossier (B06–B08) |
-| Pronto para levantamento | — | **Pendente** — sem mapeamento PHC confirmado |
-| Concluído / processado | — | **Pendente** — sem campos de origem confirmados |
+| Cancelado | `cancelado` | `sp_HCA_cancelar_pedido_mobile` |
 
-Cancelamento: SP `sp_HCA_cancelar_pedido_mobile` (script `095_*.sql`) — registo portal + **fecho PHC** (`BO.fechada` / linhas). **Não** apaga BO/BI. `PodeCancelar` só em `submetido` (aberto). Histórico omite cancelados/fechados.
+## Flag
 
-Número apresentado ao cliente: `obrano` (**provisório** até fecho B05/C03).
-
-## Gap conhecido (não inventar)
-
-Sem campos PHC confirmados que liguem o dossier destino (Cópia de Dossier) ao `bostamp` mobile, o portal **não** marca pedidos como processados nem bloqueia cancelamento por «já processado».
-
-### Informação em falta (B06–B08)
-
-1. Configuração da Cópia de Dossier (origem `ndos=67` → destino).
-2. Campos físicos de origem no destino (ex.: stamp/número de origem no BO/BI).
-3. Regra para impedir cópias/associações duplicadas.
-
-### Proposta técnica (após evidência)
-
-1. Mapear campos confirmados → código API `processado` (ou `em_preparacao`), `PodeCancelar = false`.
-2. Cancel atómico: `INSERT … WHERE NOT EXISTS (associação destino)` além do unique em `u_HcaPedidoMobileCancel`.
-3. Testes de corrida cancelamento vs processamento em UAT.
+`Portal:Cliente:PedidosInternosEnabled` — `true` = fila interna; `false` = criação legado via SP.

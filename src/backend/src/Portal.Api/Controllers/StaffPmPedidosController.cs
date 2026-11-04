@@ -24,8 +24,8 @@ public sealed class StaffPmPedidosController : ControllerBase
     }
 
     /// <summary>
-    /// filtro: pendentes (default) | em_separacao | pronto_levantamento | concluidos | rejeitados | todos
-    /// (integrados = alias de em_separacao, inclui legado «integrado»).
+    /// filtro: pendentes (default) | integrados (Validados) | rejeitados | todos
+    /// (em_separacao / pronto_levantamento / concluidos ainda aceites pela API store, legado).
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<StaffPmPedidoListaItemDto>>> Listar(
@@ -159,7 +159,7 @@ public sealed class StaffPmPedidosController : ControllerBase
         }
     }
 
-    /// <summary>Avanço operacional: body.acao = pronto_levantamento | concluir.</summary>
+    /// <summary>Legado desactivado (circuito balcão 1B+2C) — devolve 400.</summary>
     [HttpPost("{pedidoId:long}/operacao")]
     public async Task<ActionResult<StaffPmOperacaoResultDto>> Operacao(
         long pedidoId,

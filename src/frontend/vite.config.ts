@@ -40,6 +40,8 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    // Túnel Cloudflare / LAN: Host header ≠ localhost
+    allowedHosts: ['.trycloudflare.com', 'localhost', '127.0.0.1'],
     proxy: {
       '/api': {
         target: 'http://localhost:5080',

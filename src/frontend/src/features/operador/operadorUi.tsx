@@ -7,12 +7,11 @@ export function operadorEstadoChipSx(codigo: string): {
   bg: string
 } {
   switch (codigo) {
-    case 'em_separacao':
     case 'em_analise':
     case 'recebido':
       return { bg: 'rgba(255, 176, 32, 0.95)', labelColor: '#0B1220' }
-    case 'pronto_levantamento':
-      return { bg: 'rgba(61, 178, 255, 0.95)', labelColor: '#0B1220' }
+    case 'validado':
+      return { bg: 'rgba(61, 220, 151, 0.95)', labelColor: '#0B1220' }
     case 'concluido':
       return { bg: 'rgba(61, 220, 151, 0.95)', labelColor: '#0B1220' }
     case 'rejeitado':
