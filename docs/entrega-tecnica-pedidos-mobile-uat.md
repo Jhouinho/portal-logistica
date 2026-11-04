@@ -15,7 +15,9 @@ Documentação relacionada (não substituída por este documento):
 - [`portal-mobile-sp-criar-pedido.md`](./portal-mobile-sp-criar-pedido.md)
 - [`portal-mobile-deploy-uat.md`](./portal-mobile-deploy-uat.md)
 - [`portal-mobile-estados.md`](./portal-mobile-estados.md) — estados do **dossier** cliente legado (`submetido` / cancelamento); distinto dos estados internos `u_HcaPmPedido`
-- Scripts: `sql/098_*`, `sql/099_*`, `sql/100_*`, `sql/101_*` (doc), `sql/102_*`, `sql/103_*`
+- [`validacao-pedidos-mobile-copia-hca-sql.md`](./validacao-pedidos-mobile-copia-hca-sql.md) — validação posterior na cópia `HCA-SQL` / `LillianaSerodioPhc` (out/2026; pedidos sintéticos 10–17; consolidações **71** / **77** / **78**; **não** substitui esta entrega UAT)
+- [`plano-testes-pendentes-pedidos-mobile.md`](./plano-testes-pendentes-pedidos-mobile.md) — testes pendentes e estado pós-78
+- Scripts: `sql/098_*`, `sql/099_*`, `sql/100_*`, `sql/101_*` (doc), `sql/102_*`, `sql/103_*`, `sql/104_*` (doc estados operacionais)
 
 ---
 
@@ -25,7 +27,7 @@ Este documento consolida a implementação dos **pedidos mobile internos**, a pr
 
 Objetivo da funcionalidade: registar pedidos submetidos pelo portal mobile em tabelas próprias, permitir análise e decisão pela equipa autorizada, e integrar o documento PHC (`ndos = 67`) apenas após aprovação — **sem alterar** os circuitos documentais tradicionais (`ndos` 1 / 66 / 65).
 
-A validação UAT descrita aqui é **parcial**. Não substitui testes de concorrência HTTP/API, recuperação operacional nem o circuito completo de stock/expedição/faturação.
+A validação UAT descrita aqui é **parcial**. Na data desta entrega (21/10/2026) não substituía testes de concorrência HTTP/API, recuperação operacional nem o circuito completo de stock/expedição/faturação. Ensaios posteriores na cópia HCA-SQL (ver [`validacao-pedidos-mobile-copia-hca-sql.md`](./validacao-pedidos-mobile-copia-hca-sql.md) e secção **15**) cobriram parte dessas lacunas **sem** invalidar nem reescrever os resultados UAT dos pedidos 4 e 5.
 
 ---
 
@@ -57,24 +59,31 @@ Ver implementação em `ClientePedidosService` e opções em `PortalClienteOptio
 
 API: `api/v1/staff/pedidos-mobile` (`StaffPmPedidosController`) — autenticação Identity staff (não cookie cliente).
 
-Operações relevantes: listar / detalhe / guardar preços (`PUT …/precos`) / aprovar / rejeitar.
+Operações relevantes: listar / detalhe / guardar preços (`PUT …/precos`) / guardar linhas (`PUT …/linhas`) / aprovar / rejeitar / operação (`pronto_levantamento` | `concluir`).
 
 ---
 
 ## 3. Estados do pedido interno
 
-Valores de aplicação em `u_HcaPmPedido.EstadoInterno` (varchar existente desde o script 096; SQL **101** documenta a semântica sem alterar schema):
+Valores de aplicação em `u_HcaPmPedido.EstadoInterno` (varchar desde o script 096; sem CHECK). A semântica **actual** do código e do SQL **104** é:
 
-| Estado | Significado operacional |
+| Estado | Significado |
 | --- | --- |
-| `recebido` | Pendente de análise; preços editáveis; rejeitável |
-| `em_aprovacao` | Claim atómico antes da SP; preços bloqueados; rejeição bloqueada; aprovação pode continuar |
-| `integrado` | Dossier PHC associado (`Bostamp` preenchido); terminal de sucesso |
-| `rejeitado` | Terminal; sem dossier |
+| `recebido` / `em_analise` | Pendente; preços/linhas editáveis; rejeitável |
+| `em_aprovacao` | Claim antes da SP; preços e rejeição bloqueados |
+| `em_separacao` | Dossier PHC ligado; valor **gravado** por `TryMarcarIntegradoAsync` após aprovação bem-sucedida |
+| `integrado` | **Legado** equivalente operacional a `em_separacao` (ainda listado e aceite nas regras); **não** é o valor escrito pelas aprovações no código actual |
+| `pronto_levantamento` | Pós-separação; aguarda levantamento |
+| `concluido` | Terminal operacional com dossier |
+| `rejeitado` / `cancelado` | Terminais; rejeição sem dossier |
 
-Nota: o SQL 101 menciona também `em_analise` / `cancelado` como valores possíveis da coluna; a validação UAT desta entrega focou-se nos quatro estados da tabela acima, usados pelo fluxo staff de aprovação.
+### 3.1. O que esta entrega UAT (21/10/2026) observou
 
-Até à integração, `Bostamp`, `Obrano`, `Boano` e `Ndos` permanecem sem preenchimento útil (NULL / vazios conforme schema).
+Os pedidos **4** e **5** e o texto original desta secção centravam-se em `recebido` → `em_aprovacao` → **`integrado`** → `rejeitado`, alinhados ao SQL **101** (anterior ao circuito operacional completo do SQL **104**).
+
+**Não reinterpretar** esses PedidoIds: o que foi medido nessa data permanece válido para essa janela. Para o comportamento **actual** (gravação `em_separacao`, operações `pronto_levantamento` / `concluir`), ver [`validacao-pedidos-mobile-copia-hca-sql.md`](./validacao-pedidos-mobile-copia-hca-sql.md).
+
+Até haver dossier ligado, `Bostamp`, `Obrano`, `Boano` e `Ndos` permanecem sem preenchimento útil (NULL / vazios conforme schema).
 
 ---
 
@@ -85,15 +94,17 @@ Fluxo (código + SP):
 1. Claim do pedido para `em_aprovacao` (impede rejeição e alteração de preços em concorrência incompatível).
 2. Construção do TVP via `PedidoMobileLinhaTvp.BuildStaffComPrecoOperador` — coluna `edebito` = `PrecoUnitario` do operador.
 3. Invocação de `dbo.sp_HCA_criar_pedido_mobile` com chave `HCA-PM-APROV-{PedidoId}`.
-4. Persistência da associação (`Bostamp`, `Obrano`, `Boano`, `Ndos`, totais) e transição para `integrado`.
+4. Persistência da associação (`Bostamp`, `Obrano`, `Boano`, `Ndos`, totais) e transição de estado pós-aprovação.
 5. Campos de decisão (`DecididoPor`, `DataDecisao`) preenchidos na aprovação (schema SQL 098).
+
+**Nomenclatura pós-aprovação:** na janela UAT 21/10/2026 o sucesso era referido e observado como `integrado` (pedidos 4 e 5). No código **actual**, `TryMarcarIntegradoAsync` grava `em_separacao`; `integrado` permanece valor **legado** ainda aceite nas regras. Ver §3 e a validação HCA-SQL.
 
 Comportamento da SP quanto a preços (SQL 100):
 
 - `edebito` **NULL** → preço via `CL.preco` / `ST.epvN` (legado).
 - `edebito` **NOT NULL** → esse valor é o preço unitário da linha → `BI.edebito`.
 
-A UI staff **esconde** o botão de aprovar quando o pedido já está `integrado` (`podeAprovar = false`). Isso é comportamento esperado e não invalida a idempotência da SP.
+A UI staff **esconde** o botão de aprovar quando o pedido já está integrado/em separação completa (`podeAprovar = false`). Isso é comportamento esperado e não invalida a idempotência da SP.
 
 ---
 
@@ -249,15 +260,28 @@ Nos **dois** pedidos analisados (resultados observados UAT):
 
 ## 12. Limitações, riscos e cenários ainda por validar
 
-Ainda **não** estão demonstrados de forma específica / completa:
+### 12.1. Na janela UAT desta entrega (21/10/2026)
 
-- Concorrência de aprovações pelo fluxo **HTTP/API** (dois operadores / dois pedidos em paralelo sobre o mesmo `PedidoId`).
-- Repetição de aprovação após **perda da resposta HTTP** (cliente a reenviar), para além da re-execução directa da SP.
+Ainda **não** estavam demonstrados de forma específica / completa **nesta** entrega:
+
+- Concorrência de aprovações pelo fluxo **HTTP/API**.
+- Repetição de aprovação após **perda da resposta HTTP**, para além da re-execução directa da SP.
 - Conflitos entre aprovação, rejeição e alteração de preços sob carga.
-- Recuperação operacional de pedidos presos em `em_aprovacao` após falha permanente da SP (sem reset cego do estado).
-- Pedidos com **várias linhas** e validação abrangente de totais.
+- Recuperação operacional de pedidos em `em_aprovacao` após falha entre SP e mark.
+- Pedidos com **várias linhas** e validação abrangente de totais (além dos casos 4/5 de uma linha).
 - Efeitos posteriores em **stock**, expedição e faturação no circuito PHC do `ndos = 67`.
-- Percurso legado directo (`PedidosInternosEnabled = false`, `edebito NULL` → `ST.epv`) nesta mesma janela de testes (a UAT `portal-local` estava com internos activos).
+- Percurso legado directo (`PedidosInternosEnabled = false`) nesta janela (UAT `portal-local` com internos activos).
+
+### 12.2. Actualização pós cópia HCA-SQL (ver secção 15)
+
+Na cópia de teste `HCA-SQL` / `LillianaSerodioPhc` (fases 68B–70I; **não** reescreve os PedidoIds 4/5):
+
+| Lacuna UAT §12.1 | Estado posterior |
+| --- | --- |
+| Concorrência HTTP (2 sessões) | **Exercitada** (70G, pedido 13) — um ensaio; sem stress |
+| Re-aprovação HTTP / idempotência de fluxo | **Exercitada** sequencialmente (69B) e na recuperação (70I) |
+| Recuperação `em_aprovacao` após SP OK + mark falhou | **Exercitada** num ensaio controlado (70I, pedido 14) |
+| Restantes (legado, multi-linha nesta cópia, stock/expedição, carga) | **Continuam pendentes** — ver [`plano-testes-pendentes-pedidos-mobile.md`](./plano-testes-pendentes-pedidos-mobile.md) |
 
 Risco operacional: falha a meio da aprovação pode deixar `em_aprovacao`. **Não** resetar manualmente esse estado sem confirmar primeiro se a SP já criou o dossier (idem / `BO`).
 
@@ -291,4 +315,61 @@ Risco operacional: falha a meio da aprovação pode deixar `em_aprovacao`. **Nã
 
 **Estado da entrega:** validação funcional **parcial** concluída em UAT. A implementação pode avançar para revisão técnica e preparação do ambiente de destino, mantendo explícitas as limitações da secção 12.
 
-A validação dos pedidos 4 e 5 **não** substitui os testes adicionais de concorrência HTTP/API, recuperação e circuito operacional completo.
+A validação dos pedidos 4 e 5 **não** substitui, por si só, os testes adicionais de concorrência HTTP/API, recuperação e circuito operacional completo. Parte desses cenários foi depois exercitada na cópia HCA-SQL (secção **15**); a validação global permanece **parcial**.
+
+**Etapa 4 / produção:** continua **bloqueada** até autorização e runbooks próprios — nem a UAT 21/10 nem a cópia HCA-SQL a desbloqueiam.
+
+---
+
+## 15. Complemento — validações na cópia HCA-SQL (out/2026)
+
+Fonte canónica de detalhe: [`validacao-pedidos-mobile-copia-hca-sql.md`](./validacao-pedidos-mobile-copia-hca-sql.md). Planeamento do que falta: [`plano-testes-pendentes-pedidos-mobile.md`](./plano-testes-pendentes-pedidos-mobile.md).
+
+Este complemento **não** altera datas nem resultados dos pedidos UAT 4 e 5 (§10).
+
+### 15.1. `em_separacao` vs `integrado`
+
+| Contexto | Valor pós-aprovação |
+| --- | --- |
+| UAT 21/10/2026 (pedidos 4 e 5) | Observado / documentado como `integrado` |
+| Código actual + cópia HCA-SQL (11, 13, 14; **16** reportado na 74) | Gravado / observado `em_separacao` |
+| `integrado` hoje | Legado ainda aceite nas regras e listagens |
+
+### 15.2. Novos cenários validados (resumo)
+
+| Fase | Pedido | Cenário |
+| --- | --- | --- |
+| 70F-A | 12 / `PM-2026-000012` (`70FATEST`) | `PUT /linhas` (qtt, add, remove, inválido, restore); sem PHC |
+| 70G | 13 / `PM-2026-000013` (`70GATEST`) | 2 aprovações concorrentes; RO: 1 idem + 1 dossier; `obrano=15` |
+| 70I | 14 / `PM-2026-000014` (`70IATEST`) | Falha após SP, antes do mark; recuperação → `em_separacao`; `obrano=16`; 1+1 RO |
+| **74** (reportada) | 15 / `PM-2026-000015` (`74TEST`) | Runtime `portal_app`: criado + rejeitado; sem dossier |
+| **74** (reportada) | 16 / `PM-2026-000016` (`74APPROVE`) | Runtime `portal_app`: aprovado → `em_separacao`; `ndos=67`, `obrano=17`, `boano=2026`; SQL reportado: 1 idem `HCA-PM-APROV-16` + 1 `bo` |
+| **78** | 17 / `PM-2026-000017` (`78OPTEST`) | Runtime `portal_app`: approve → 2× `pronto_levantamento` → 2× `concluir`; repeats HTTP 200 sem regravar auditoria; `ndos=67`, `obrano=18`; RO 1 idem + 1 `bo` |
+| **79** (parcial) | 18 / `PM-2026-000018` (`79VATTEST`) | Multi-linha/totais sem aprovar; `Etotaldeb` Round 6dp; `PrecoSubmissao` OK; IVA **não** no modelo PM; anomalia gap `LinhaOrd` em re-PUT |
+| **80** (estática) | — (pedido 18 preservado) | Causa gap `LinhaOrd`: `null`⇒INSERT + DELETE órfãs + `maxOrd` pré-delete; UI reenvia ord após save; SP aceita gaps; correção mínima proposta, **não** aplicada |
+| **81** (parcial) | — (sem escrita; 10–18 intactos) | Filtros lista staff + alias `integrados`/`integrado` E2E; 401 sem sessão e cruzamento esquemas; 403 Admin não E2E |
+| **82** | 19 / `PM-2026-000019` (`82IVATEST`) | IVA/totais BO67: gate SP100+`regiva`; 2 linhas; `BO.etotaldeb=38.91`; BI `iva=6`/`ivaincl=1`; 1 idem + 1 `bo` |
+
+Também na mesma cópia (fases anteriores): rejeição (**10**); aprovação + `pronto_levantamento` + `concluir` (**11**, `obrano=14`, sem repeats).
+
+A evidência SQL da Fase **74** é a **reportada** pelo operador; a consolidação documental **77** não a revalidou. A **78** tem evidência HTTP + SQL RO do agente.
+
+### 15.3. Segurança — `portal_app` (cópia)
+
+- Validado na cópia **apenas** para os fluxos reportados na **74** (não produção).
+- Password **não** deve constar de documentação, código, logs ou repositório.
+- Relatório 74: sem alteração de grants, login, password ou user-secrets.
+- Prontidão de produção **não** demonstrada; qualquer rotação futura deve considerar serviços dependentes do mesmo login.
+
+### 15.4. O que ainda impede validação completa
+
+- Flag `PedidosInternosEnabled=false` (legado)
+- Residual runtime `portal_app` (cenários não cobertos pela 74/78)
+- Residual IVA outras taxas/descontos (82: PT 6% / 2 linhas validado)
+- Residual 403 role Admin E2E; pesquisa textual server-side (81: filtros estado OK)
+- Ensaio dedicado com estado legado `integrado`
+- Carga / concorrência além de 2 clientes
+- Stock / expedição / faturação do `ndos=67`
+- Recuperação: só um ensaio controlado (70I), não todos os modos de falha
+
+**Etapa 4 permanece bloqueada.**

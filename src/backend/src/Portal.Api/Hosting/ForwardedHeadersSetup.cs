@@ -71,11 +71,27 @@ public static class ForwardedHeadersSetup
     /// <summary>Resumo testável sem expor tipos de HttpOverrides aos projectos de teste.</summary>
     public static (string[] Proxies, int NetworkCount, bool ForwardsProtoAndFor) DescribeTrust(IConfiguration configuration)
     {
+        var d = DescribeTrustDetails(configuration);
+        return (d.Proxies, d.NetworkCount, d.ForwardsProtoAndFor);
+    }
+
+    /// <summary>
+    /// Detalhe da confiança efectiva após <see cref="Apply"/> (defaults ASP.NET preservados: loopback, ForwardLimit).
+    /// </summary>
+    public static (
+        string[] Proxies,
+        int NetworkCount,
+        bool ForwardsProtoAndFor,
+        int? ForwardLimit,
+        bool ForwardsHost) DescribeTrustDetails(IConfiguration configuration)
+    {
         var options = new ForwardedHeadersOptions();
         Apply(options, configuration);
         return (
             options.KnownProxies.Select(p => p.ToString()).ToArray(),
             options.KnownNetworks.Count,
-            options.ForwardedHeaders == (ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto));
+            options.ForwardedHeaders == (ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto),
+            options.ForwardLimit,
+            options.ForwardedHeaders.HasFlag(ForwardedHeaders.XForwardedHost));
     }
 }

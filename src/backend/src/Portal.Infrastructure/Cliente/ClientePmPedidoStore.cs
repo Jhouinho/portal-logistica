@@ -185,7 +185,7 @@ public sealed class ClientePmPedidoStore : IClientePmPedidoStore
             WHERE ClNo = @clNo
               AND ClEstab = @clEstab
               AND NumeroInterno IS NOT NULL
-            ORDER BY DataSubmissao ASC, PedidoId ASC
+            ORDER BY DataSubmissao DESC, PedidoId DESC
             """,
             new { top, clNo, clEstab },
             cancellationToken: cancellationToken));

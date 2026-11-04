@@ -147,6 +147,38 @@ public class SecurityHardeningTests
     }
 
     [Fact]
+    public void Cookie_cliente_sliding_30_minutos_sem_alterar_politica()
+    {
+        Assert.Equal(30, ClienteAuthConstants.SessionMinutes);
+        var (_, cliente) = ResolveCookieOptions(Environments.Development, allowInsecure: true);
+        Assert.True(cliente.SlidingExpiration);
+        Assert.Equal(TimeSpan.FromMinutes(30), cliente.ExpireTimeSpan);
+        Assert.Equal(ClienteAuthConstants.CookieName, cliente.Cookie.Name);
+    }
+
+    [Fact]
+    public void Cookie_staff_nao_partilha_nome_nem_duracao_com_cliente()
+    {
+        var (staff, cliente) = ResolveCookieOptions(Environments.Development, allowInsecure: true);
+        Assert.NotEqual(staff.Cookie.Name, cliente.Cookie.Name);
+        Assert.Equal(TimeSpan.FromHours(8), staff.ExpireTimeSpan);
+        Assert.Equal(TimeSpan.FromMinutes(30), cliente.ExpireTimeSpan);
+    }
+
+    [Fact]
+    public void ClienteSession_SignOut_usa_scheme_cliente()
+    {
+        var m = typeof(Portal.Api.Cliente.ClienteSession).GetMethod(
+            nameof(Portal.Api.Cliente.ClienteSession.SignOutAsync));
+        Assert.NotNull(m);
+        var src = File.ReadAllText(SourcePathHelper.ResolveBackendSrc(
+            "Portal.Api", "Cliente", "ClienteSession.cs"));
+        Assert.Contains("SignOutAsync(ClienteAuthConstants.CookieScheme)", src, StringComparison.Ordinal);
+        Assert.Contains("ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(ClienteAuthConstants.SessionMinutes)", src, StringComparison.Ordinal);
+        Assert.Contains("AllowRefresh = true", src, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Lockout_constantes_e_quinta_falha()
     {
         Assert.Equal(5, ClienteAuthConstants.PhoneMaxFailures);

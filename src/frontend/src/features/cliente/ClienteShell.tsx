@@ -13,19 +13,34 @@ import {
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
+import { useEffect, useState } from 'react'
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { BrandLogo } from '../../shared/ui/BrandLogo'
 import { useClienteAuth } from './ClienteAuthContext'
-import { loadCarrinho } from './carrinhoStorage'
+import { CARRINHO_CHANGED_EVENT, loadCarrinho } from './carrinhoStorage'
 
 export function ClienteShell() {
   const { cliente, logout } = useClienteAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [cartTick, setCartTick] = useState(0)
 
-  // Lê o carrinho em cada render (storage local) para o badge acompanhar alterações.
+  useEffect(() => {
+    const bump = () => setCartTick((n) => n + 1)
+    window.addEventListener(CARRINHO_CHANGED_EVENT, bump)
+    window.addEventListener('storage', bump)
+    return () => {
+      window.removeEventListener(CARRINHO_CHANGED_EVENT, bump)
+      window.removeEventListener('storage', bump)
+    }
+  }, [])
+
+  // cartTick força re-leitura após save/clear na mesma tab (Outlet não remonta o shell).
   const cartCount = cliente
-    ? loadCarrinho(cliente.no, cliente.estab).reduce((s, l) => s + l.qtt, 0)
+    ? (() => {
+        void cartTick
+        return loadCarrinho(cliente.no, cliente.estab).reduce((s, l) => s + l.qtt, 0)
+      })()
     : 0
 
   const navValue = location.pathname.startsWith('/cliente/carrinho')

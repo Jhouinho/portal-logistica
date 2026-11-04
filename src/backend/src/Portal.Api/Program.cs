@@ -29,6 +29,8 @@ try
 
     // IIS + ANCM: confia no loopback por omissão; proxies extra só via ForwardedHeaders:KnownProxies/Networks.
     ForwardedHeadersSetup.Configure(builder.Services, builder.Configuration);
+    // Allowlist IP/CIDR do Portal Cliente Mobile. Default Enabled=false — redes só após confirmação IT.
+    InternalNetworkSetup.Configure(builder.Services, builder.Configuration);
     // Isolamento hostname público (Portal Mobile). Default Enabled=false — ValidateOnStart se mal configurado.
     PublicEdgeSetup.Configure(builder.Services, builder.Configuration);
 
@@ -79,6 +81,8 @@ try
     // Schema Identity e role Admin: apenas via scripts SQL (029+, 033) ou UI Admin — nunca no arranque.
 
     app.UseForwardedHeaders();
+    // Rede interna (cliente SPA+API) — após ForwardedHeaders; independente de PublicEdge (hostname).
+    app.UseInternalNetworkFilter();
     app.UsePublicEdgePathFilter();
     app.UseExceptionHandler();
 

@@ -59,18 +59,12 @@ public sealed class ClientePedidosService : IClientePedidosService
         int top,
         CancellationToken cancellationToken)
     {
-        top = Math.Clamp(top, 1, 50);
+        top = ClientePedidoListaOrdenacao.ClampTop(top);
 
         var internos = await ListarInternosSafeAsync(no, estab, top, cancellationToken);
         var legado = await ListarLegadoAsync(no, estab, top, cancellationToken);
 
-        return internos
-            .Concat(legado)
-            .OrderByDescending(x => x.DataObra)
-            .ThenByDescending(x => x.PedidoId ?? 0)
-            .ThenByDescending(x => x.Obrano ?? 0)
-            .Take(top)
-            .ToList();
+        return ClientePedidoListaOrdenacao.MergeTop(internos, legado, top);
     }
 
     public async Task<ClientePedidoDetalhe?> ObterAsync(
@@ -87,16 +81,17 @@ public sealed class ClientePedidosService : IClientePedidosService
         {
             var interno = await ObterInternoSafeAsync(
                 () => _pmStore.ObterPorIdAsync(no, estab, pedidoId, cancellationToken));
-            if (interno is not null)
-                return MapDetalheInterno(interno);
+            // ID numérico = pedido interno; não consultar legado (evita fuga/ambiguidade).
+            return interno is null ? null : MapDetalheInterno(interno);
         }
 
-        if (NumeroInternoRegex.IsMatch(id))
+        if (id.StartsWith("PM-", StringComparison.OrdinalIgnoreCase))
         {
+            if (!NumeroInternoRegex.IsMatch(id))
+                return null;
             var interno = await ObterInternoSafeAsync(
                 () => _pmStore.ObterPorNumeroAsync(no, estab, id.ToUpperInvariant(), cancellationToken));
-            if (interno is not null)
-                return MapDetalheInterno(interno);
+            return interno is null ? null : MapDetalheInterno(interno);
         }
 
         return await ObterLegadoAsync(no, estab, id, cancellationToken);
@@ -118,14 +113,19 @@ public sealed class ClientePedidosService : IClientePedidosService
                 () => _pmStore.ObterPorIdAsync(no, estab, pedidoId, cancellationToken));
             if (interno is not null)
                 return (false, "interno_proibido");
+            // ID numérico = âmbito interno; não cancelar legado por colisão de identificador.
+            return (false, "nao_encontrado");
         }
 
-        if (NumeroInternoRegex.IsMatch(id))
+        if (id.StartsWith("PM-", StringComparison.OrdinalIgnoreCase))
         {
+            if (!NumeroInternoRegex.IsMatch(id))
+                return (false, "nao_encontrado");
             var interno = await ObterInternoSafeAsync(
                 () => _pmStore.ObterPorNumeroAsync(no, estab, id.ToUpperInvariant(), cancellationToken));
             if (interno is not null)
                 return (false, "interno_proibido");
+            return (false, "nao_encontrado");
         }
 
         return await CancelarLegadoAsync(no, estab, id, cancellationToken);
@@ -241,8 +241,9 @@ public sealed class ClientePedidosService : IClientePedidosService
             return rows.Select(r =>
             {
                 var (codigo, etiqueta, podeCancelar) = ClientePedidoEstadoMapper.MapInterno(r.EstadoInterno);
+                // Bostamp só para deduplicar face ao legado após integração PHC; UI usa NumeroInterno.
                 return new ClientePedidoListaItem(
-                    Bostamp: null,
+                    Bostamp: r.Bostamp,
                     Obrano: null,
                     Boano: null,
                     r.DataSubmissao,

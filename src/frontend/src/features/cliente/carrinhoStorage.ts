@@ -6,22 +6,27 @@ export type CarrinhoLinha = {
   precoUnitario: number
 }
 
-function lisbonDateKey(): string {
+/** Data civil em Europe/Lisbon (YYYY-MM-DD). Aceita `now` para testes. */
+export function lisbonDateKey(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Lisbon',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date())
+  }).format(now)
 }
 
-function storageKey(no: number, estab: number): string {
-  return `ls_cliente_cart_${no}_${estab}_${lisbonDateKey()}`
+export function cartStorageKey(no: number, estab: number, dateKey: string): string {
+  return `ls_cliente_cart_${no}_${estab}_${dateKey}`
 }
 
-export function loadCarrinho(no: number, estab: number): CarrinhoLinha[] {
+function storageKey(no: number, estab: number, now?: Date): string {
+  return cartStorageKey(no, estab, lisbonDateKey(now))
+}
+
+export function loadCarrinho(no: number, estab: number, now?: Date): CarrinhoLinha[] {
   try {
-    const raw = localStorage.getItem(storageKey(no, estab))
+    const raw = localStorage.getItem(storageKey(no, estab, now))
     if (!raw) return []
     const parsed = JSON.parse(raw) as CarrinhoLinha[]
     return Array.isArray(parsed) ? parsed : []
@@ -30,12 +35,22 @@ export function loadCarrinho(no: number, estab: number): CarrinhoLinha[] {
   }
 }
 
-export function saveCarrinho(no: number, estab: number, linhas: CarrinhoLinha[]) {
-  localStorage.setItem(storageKey(no, estab), JSON.stringify(linhas))
+/** Notifica o shell (badge) quando o storage do carrinho muda na mesma tab. */
+export const CARRINHO_CHANGED_EVENT = 'ls-cliente-cart-changed'
+
+function notifyCarrinhoChanged() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(CARRINHO_CHANGED_EVENT))
 }
 
-export function clearCarrinho(no: number, estab: number) {
-  localStorage.removeItem(storageKey(no, estab))
+export function saveCarrinho(no: number, estab: number, linhas: CarrinhoLinha[], now?: Date) {
+  localStorage.setItem(storageKey(no, estab, now), JSON.stringify(linhas))
+  notifyCarrinhoChanged()
+}
+
+export function clearCarrinho(no: number, estab: number, now?: Date) {
+  localStorage.removeItem(storageKey(no, estab, now))
+  notifyCarrinhoChanged()
 }
 
 export function upsertLinha(linhas: CarrinhoLinha[], nova: CarrinhoLinha): CarrinhoLinha[] {

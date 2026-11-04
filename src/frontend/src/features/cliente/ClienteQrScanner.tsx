@@ -4,6 +4,9 @@ import CloseIcon from '@mui/icons-material/Close'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import { Html5Qrcode } from 'html5-qrcode'
 import { ClienteAlert, ClientePrimaryButton, ClienteSecondaryButton } from './clienteUi'
+import { isIosSafari, normalizeQrPayload } from './clienteQrPayload'
+
+export { httpsHintUrl, isIosSafari, normalizeQrPayload } from './clienteQrPayload'
 
 const LIVE_REGION_ID = 'cliente-qr-live'
 const FILE_REGION_ID = 'cliente-qr-file'
@@ -12,41 +15,6 @@ type Props = {
   open: boolean
   onClose: () => void
   onDecoded: (referencia: string) => void
-}
-
-/** QR de artigo contém só a referência; aceita também URL com ?ref= ou último segmento. */
-export function normalizeQrPayload(raw: string): string {
-  const t = raw.trim()
-  if (!t) return t
-  try {
-    if (/^https?:\/\//i.test(t)) {
-      const u = new URL(t)
-      const fromQuery = u.searchParams.get('ref') ?? u.searchParams.get('referencia')
-      if (fromQuery?.trim()) return fromQuery.trim()
-      const parts = u.pathname.split('/').filter(Boolean)
-      if (parts.length > 0) return decodeURIComponent(parts[parts.length - 1]!)
-    }
-  } catch {
-    /* texto simples */
-  }
-  return t
-}
-
-export function isIosSafari(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  const webkit = /WebKit/i.test(ua)
-  const chromeIos = /CriOS|FxiOS|EdgiOS/i.test(ua)
-  return iOS && webkit && !chromeIos
-}
-
-export function httpsHintUrl(): string | null {
-  if (typeof window === 'undefined' || window.isSecureContext) return null
-  const { hostname, port } = window.location
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return null
-  if (port === '8088') return `https://${hostname}:8443${window.location.pathname}${window.location.search}`
-  return `https://${hostname}${window.location.pathname}${window.location.search}`
 }
 
 /**
