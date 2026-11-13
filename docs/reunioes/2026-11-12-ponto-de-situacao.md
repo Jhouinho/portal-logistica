@@ -87,7 +87,8 @@ Os pontos abaixo representam necessidades, sugestões, alterações pretendidas 
 - Exportar para Excel todas as referências de artigos existentes no PHC.
 - O cliente deverá preencher no ficheiro as colunas correspondentes às cores válidas para cada referência.
 - Após validação e devolução do ficheiro, a informação será importada para o PHC, associando as cores às respectivas referências.
-- No portal, durante a criação ou edição de encomendas, deverão ser disponibilizadas apenas as cores definidas para a referência seleccionada.
+- No PHC, durante a criação e edição das encomendas, deverão estar disponíveis apenas as cores definidas para a referência seleccionada.
+- O portal deverá reflectir a informação de cores associada a cada referência, mas não será utilizado para criar ou submeter encomendas; estas operações são realizadas no PHC.
 - O objectivo é normalizar as designações, evitar variantes (por exemplo, «amarelo» e «amarela»), duplicações e erros.
 - A preparação e validação da informação comercial será feita pelo cliente através do Excel; a integração técnica será assegurada no âmbito do projecto.
 
